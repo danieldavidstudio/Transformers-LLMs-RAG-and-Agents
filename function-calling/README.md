@@ -54,13 +54,15 @@ uv sync
 Create a `.env` file in the `function-calling` folder:
 
 ```bash
-echo "OPENAI_API_KEY=your-api-key-here" > .env
-```
+# Required
+OPENAI_API_KEY=your-api-key-here
 
-Or manually create a file named `.env` with:
+# Optional: choose model (default: gpt-4.1-mini)
+MODEL=gpt-4.1-mini
 
-```
-OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx
+# Optional: use alternative OpenAI-compatible API endpoint
+# OPENAI_API_ENDPOINT=http://localhost:11434/v1  # Ollama
+# OPENAI_API_ENDPOINT=https://your-azure-endpoint.openai.azure.com/v1
 ```
 
 > ⚠️ **Never commit your `.env` file!** It's already in `.gitignore`.
@@ -131,3 +133,8 @@ Without function calling, the pig can only *say* "I'll call the hunter." With fu
 
 - [OpenAI Function Calling Documentation](https://platform.openai.com/docs/guides/function-calling)
 - [OpenAI API Reference](https://platform.openai.com/docs/api-reference)
+
+# Licensed under public domain 
+
+@granludo Marc Alier 
+

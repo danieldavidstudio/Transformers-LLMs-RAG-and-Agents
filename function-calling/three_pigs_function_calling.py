@@ -36,6 +36,10 @@ console = Console()
 # Initialize the OpenAI client
 client = None
 
+# Configuration from .env
+MODEL = os.getenv("MODEL", "gpt-4.1-mini")
+OPENAI_API_ENDPOINT = os.getenv("OPENAI_API_ENDPOINT")  # Optional: for alternative API endpoints
+
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
@@ -255,12 +259,14 @@ def run_chat(use_tools: bool):
         
         # Build request data for display
         request_data = {
-            "model": "gpt-4.1-mini",
+            "model": MODEL,
             "messages": messages,
             "temperature": 0.7
         }
         if use_tools:
             request_data["tools"] = AVAILABLE_TOOLS
+        if OPENAI_API_ENDPOINT:
+            request_data["_endpoint"] = OPENAI_API_ENDPOINT
         
         # Show the request
         console.print()
@@ -270,14 +276,14 @@ def run_chat(use_tools: bool):
         with wait_for_llm():
             if use_tools:
                 response = client.chat.completions.create(
-                    model="gpt-4.1-mini",
+                    model=MODEL,
                     messages=messages,
                     tools=AVAILABLE_TOOLS,
                     temperature=0.7
                 )
             else:
                 response = client.chat.completions.create(
-                    model="gpt-4.1-mini",
+                    model=MODEL,
                     messages=messages,
                     temperature=0.7
                 )
@@ -365,18 +371,21 @@ def run_chat(use_tools: bool):
                 console.print(create_message_panel("tool", result))
             
             # Show follow-up request
-            console.print()
-            console.print(show_api_request({
-                "model": "gpt-4.1-mini",
+            follow_request = {
+                "model": MODEL,
                 "messages": messages,
                 "tools": AVAILABLE_TOOLS,
                 "temperature": 0.7
-            }))
+            }
+            if OPENAI_API_ENDPOINT:
+                follow_request["_endpoint"] = OPENAI_API_ENDPOINT
+            console.print()
+            console.print(show_api_request(follow_request))
             
             # Get follow-up response
             with wait_for_llm():
                 follow_up = client.chat.completions.create(
-                    model="gpt-4.1-mini",
+                    model=MODEL,
                     messages=messages,
                     tools=AVAILABLE_TOOLS,
                     temperature=0.7
@@ -455,7 +464,20 @@ def main():
         ))
         return
     
-    client = OpenAI(api_key=api_key)
+    # Initialize client with optional custom endpoint
+    if OPENAI_API_ENDPOINT:
+        client = OpenAI(api_key=api_key, base_url=OPENAI_API_ENDPOINT)
+    else:
+        client = OpenAI(api_key=api_key)
+    
+    # Show configuration
+    console.print(Panel(
+        Text(f"Model: {MODEL}\nEndpoint: {OPENAI_API_ENDPOINT or 'https://api.openai.com/v1'}", 
+             style="bright_white on grey23"),
+        title="⚙️ Configuration",
+        border_style="cyan",
+        style="on grey23"
+    ))
     
     while True:
         show_menu()
