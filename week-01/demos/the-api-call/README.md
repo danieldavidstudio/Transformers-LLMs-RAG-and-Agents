@@ -13,6 +13,7 @@ responses/          the newer endpoint    (/v1/responses)
   curl.sh             raw HTTP, no SDK
   call.py             the same call via the openai SDK
 streaming/          tokens as they are produced (the typewriter effect)
+  curl.sh             raw SSE (data: chunks) over the wire — no SDK
   stream.py           stream=True over chat completions
 multimodal/         send an image, not just text
   send_image.py       content as a list of parts (text + image)

@@ -19,6 +19,16 @@ uv run --with openai --with python-dotenv python stream.py
 
 Watch the text appear a few tokens at a time, then the `usage` line at the end.
 
+Or see it from a raw-HTTP point of view — same call with `"stream": true`, no
+SDK. `curl -N` prints each `data: {...}` chunk the instant it arrives:
+
+```bash
+bash curl.sh
+```
+
+You get the Server-Sent Events the SDK hides from you: a run of `data:` lines,
+each with a bit more text in `choices[0].delta.content`, ending in `data: [DONE]`.
+
 ---
 
 © 2026 **Marc Alier i Forment** (Universitat Politècnica de Catalunya) · <https://wasabi.essi.upc.edu/ludo> · <https://lamb-project.org>
