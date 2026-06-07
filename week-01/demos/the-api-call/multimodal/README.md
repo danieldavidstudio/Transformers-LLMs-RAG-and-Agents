@@ -14,12 +14,16 @@ model usually cannot see images.
 
 ```bash
 cp ../.env.example .env        # set a vision MODEL + your key
+uv run --with openai python send_image.py                  # the bundled image
 uv run --with openai python send_image.py path/to/photo.jpg
-# or a public URL:
 uv run --with openai python send_image.py https://example.com/photo.jpg
 ```
 
-It prints a one-sentence description of the image, plus the token `usage`.
+With no argument it sends the bundled **`great-atuin.png`** — the Great A'Tuin
+carrying the elephants and the Disc (turtles all the way down) — and asks the
+model what is holding up the world. A good first test that vision is working,
+and a fitting one for this course. It prints the model's answer plus the token
+`usage`.
 
 ---
 

@@ -17,6 +17,7 @@ usually cannot see images.
 
 Run it:
     cp ../.env.example .env          # set a vision MODEL + your key
+    uv run --with openai python send_image.py                  # the bundled Great A'Tuin
     uv run --with openai python send_image.py path/to/photo.jpg
     uv run --with openai python send_image.py https://example.com/photo.jpg
 """
@@ -33,9 +34,10 @@ client = OpenAI(
 )
 model = os.environ.get("MODEL", "gpt-4.1-mini")  # must be able to see images
 
-if len(sys.argv) < 2:
-    sys.exit("usage: python send_image.py <image-file-or-URL>")
-image = sys.argv[1]
+# With no argument we send the bundled Great A'Tuin image (turtles all the way
+# down). Pass your own image file or URL as the first argument to use that.
+default_img = os.path.join(os.path.dirname(__file__), "great-atuin.png")
+image = sys.argv[1] if len(sys.argv) > 1 else default_img
 
 # An image goes into the message either as a URL the server can fetch, or as a
 # base64 data URI you inline (handy for local files / private images).
@@ -54,7 +56,7 @@ resp = client.chat.completions.create(
             "role": "user",
             # content is now a LIST of parts, not a plain string:
             "content": [
-                {"type": "text", "text": "Describe this image in one sentence."},
+                {"type": "text", "text": "Describe this image. What is holding up the world — and what is holding up that?"},
                 {"type": "image_url", "image_url": {"url": image_url}},
             ],
         }
