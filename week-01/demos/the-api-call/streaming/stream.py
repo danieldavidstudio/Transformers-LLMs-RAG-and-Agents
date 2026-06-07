@@ -14,12 +14,15 @@ in ChatGPT. Nothing about the model changes; only how the bytes reach you.
 
 Run it:
     cp ../.env.example .env   # set OPENAI_ENDPOINT / OPENAI_API_KEY / MODEL
-    uv run --with openai python stream.py
+    uv run --with openai --with python-dotenv python stream.py
 """
 
 import os
 
 from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()  # pull OPENAI_ENDPOINT / OPENAI_API_KEY / MODEL from a local .env
 
 client = OpenAI(
     base_url=os.environ.get("OPENAI_ENDPOINT", "https://api.openai.com/v1"),

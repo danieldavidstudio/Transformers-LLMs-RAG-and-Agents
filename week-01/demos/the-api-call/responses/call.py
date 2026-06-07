@@ -6,6 +6,9 @@
 import os
 
 from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()  # pull OPENAI_ENDPOINT / OPENAI_API_KEY / MODEL from a local .env
 
 # OPENAI_ENDPOINT + MODEL come from .env. Note: the Responses API is
 # OpenAI-specific — most OpenAI-compatible providers (Ollama included) do not

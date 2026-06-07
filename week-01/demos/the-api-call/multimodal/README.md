@@ -14,9 +14,9 @@ model usually cannot see images.
 
 ```bash
 cp ../.env.example .env        # set a vision MODEL + your key
-uv run --with openai python send_image.py                  # the bundled image
-uv run --with openai python send_image.py path/to/photo.jpg
-uv run --with openai python send_image.py https://example.com/photo.jpg
+uv run --with openai --with python-dotenv python send_image.py                  # the bundled image
+uv run --with openai --with python-dotenv python send_image.py path/to/photo.jpg
+uv run --with openai --with python-dotenv python send_image.py https://example.com/photo.jpg
 ```
 
 With no argument it sends the bundled **`great-atuin.png`** — the Great A'Tuin

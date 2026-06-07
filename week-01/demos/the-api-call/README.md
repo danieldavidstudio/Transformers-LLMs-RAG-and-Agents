@@ -12,30 +12,39 @@ chat-completions/   the classic endpoint  (/v1/chat/completions)
 responses/          the newer endpoint    (/v1/responses)
   curl.sh             raw HTTP, no SDK
   call.py             the same call via the openai SDK
+streaming/          tokens as they are produced (the typewriter effect)
+  stream.py           stream=True over chat completions
+multimodal/         send an image, not just text
+  send_image.py       content as a list of parts (text + image)
 ```
 
 ## Run it
 
-Set your key once:
+Each folder is self-contained and reads its own `.env`. Copy the example,
+fill it in, and run **from inside the folder** so the right `.env` is picked up:
 
 ```bash
-export OPENAI_API_KEY="sk-..."        # or put it in a .env (see .env.example)
+cd chat-completions
+cp ../.env.example .env        # set OPENAI_ENDPOINT / OPENAI_API_KEY / MODEL
 ```
 
-Raw HTTP — nothing but `curl`:
+Raw HTTP — nothing but `curl` (the script sources `.env` for you):
 
 ```bash
-bash chat-completions/curl.sh
-bash responses/curl.sh
+bash curl.sh
 ```
 
-Python — install the SDK first:
+Python — via `uv`, no manual install:
 
 ```bash
-pip install openai
-python chat-completions/call.py
-python responses/call.py
+uv run --with openai --with python-dotenv python call.py
 ```
+
+The same two commands work in `responses/`, `streaming/`, and `multimodal/`.
+Two caveats on where each can point: the **Responses API** (`responses/`) and
+**vision** (`multimodal/`) are OpenAI-specific — point their `.env` at OpenAI.
+Plain chat completions (`chat-completions/`, `streaming/`) run against anything
+that speaks the wire format, including a local model.
 
 ## Chat Completions vs Responses
 

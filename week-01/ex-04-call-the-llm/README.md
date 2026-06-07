@@ -27,7 +27,7 @@ responses_openai.py  the Responses API — OpenAI ONLY (will not run on Ollama)
 
    ```bash
    cp .env.example .env    # the defaults point at your local Ollama
-   pip install openai
+   pip install openai python-dotenv
    ```
 
    Edit `MODEL` in `.env` to whatever fits your machine — `ministral-3:8b`
@@ -36,7 +36,7 @@ responses_openai.py  the Responses API — OpenAI ONLY (will not run on Ollama)
 ## Run it
 
 ```bash
-# load your .env into the shell, then:
+# .env loads automatically — call.py reads it via python-dotenv, call.sh sources it.
 python call.py
 bash   call.sh
 ```

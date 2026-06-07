@@ -7,6 +7,7 @@
 # Same idea, simpler surface: one `input`, one `output_text`.
 # OPENAI_ENDPOINT / MODEL come from your .env; defaults below hit OpenAI.
 # (The Responses API is OpenAI-specific — most other providers don't implement it.)
+[ -f .env ] && { set -a; . ./.env; set +a; }   # load .env if present (bash has no auto-load)
 ENDPOINT="${OPENAI_ENDPOINT:-https://api.openai.com/v1}"
 MODEL="${MODEL:-gpt-4.1-mini}"
 

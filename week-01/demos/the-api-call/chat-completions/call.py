@@ -6,6 +6,9 @@
 import os
 
 from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()  # pull OPENAI_ENDPOINT / OPENAI_API_KEY / MODEL from a local .env
 
 # OPENAI_ENDPOINT points the SDK at any OpenAI-compatible API (OpenAI,
 # OpenRouter, Groq, a local Ollama, ...); MODEL picks the model. Both come from

@@ -14,6 +14,9 @@ The wire format is the same everywhere. Only the .env changes.
 import os
 
 from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()  # pull OPENAI_ENDPOINT / OPENAI_API_KEY / MODEL from a local .env
 
 client = OpenAI(
     base_url=os.environ.get("OPENAI_ENDPOINT", "http://localhost:11434/v1"),

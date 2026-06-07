@@ -16,6 +16,9 @@ provider that implements the Responses API).
 import os
 
 from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()  # pull OPENAI_ENDPOINT / OPENAI_API_KEY / MODEL from a local .env
 
 client = OpenAI(
     base_url=os.environ.get("OPENAI_ENDPOINT", "https://api.openai.com/v1"),

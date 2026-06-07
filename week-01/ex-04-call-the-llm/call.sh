@@ -5,6 +5,7 @@
 
 # The same Chat Completions call, raw HTTP — no SDK, just curl.
 # Defaults to your local Ollama. Override with env vars to hit a cloud provider.
+[ -f .env ] && { set -a; . ./.env; set +a; }   # load .env if present (bash has no auto-load)
 ENDPOINT="${OPENAI_ENDPOINT:-http://localhost:11434/v1}"
 API_KEY="${OPENAI_API_KEY:-ollama}"
 MODEL="${MODEL:-ministral-3:8b}"

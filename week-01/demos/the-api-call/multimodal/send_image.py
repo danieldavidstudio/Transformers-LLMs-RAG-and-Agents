@@ -17,9 +17,9 @@ usually cannot see images.
 
 Run it:
     cp ../.env.example .env          # set a vision MODEL + your key
-    uv run --with openai python send_image.py                  # the bundled Great A'Tuin
-    uv run --with openai python send_image.py path/to/photo.jpg
-    uv run --with openai python send_image.py https://example.com/photo.jpg
+    uv run --with openai --with python-dotenv python send_image.py                  # the bundled Great A'Tuin
+    uv run --with openai --with python-dotenv python send_image.py path/to/photo.jpg
+    uv run --with openai --with python-dotenv python send_image.py https://example.com/photo.jpg
 """
 
 import base64
@@ -27,6 +27,9 @@ import os
 import sys
 
 from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()  # pull OPENAI_ENDPOINT / OPENAI_API_KEY / MODEL from a local .env
 
 client = OpenAI(
     base_url=os.environ.get("OPENAI_ENDPOINT", "https://api.openai.com/v1"),

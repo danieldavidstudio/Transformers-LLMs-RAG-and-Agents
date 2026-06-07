@@ -14,7 +14,7 @@ to get a final chunk with the token `usage`, which a streamed response otherwise
 
 ```bash
 cp ../.env.example .env        # OPENAI_ENDPOINT / OPENAI_API_KEY / MODEL
-uv run --with openai python stream.py
+uv run --with openai --with python-dotenv python stream.py
 ```
 
 Watch the text appear a few tokens at a time, then the `usage` line at the end.
