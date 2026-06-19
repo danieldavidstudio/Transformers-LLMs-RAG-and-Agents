@@ -28,9 +28,9 @@ resp = client.chat.completions.create(
     model=model,
     messages=[
         {"role": "system", "content": "You are a terse assistant."},
-        {"role": "user",   "content": "Say hello in one sentence."},
+        {"role": "user",   "content": "Write a creative greeting in one sentence."},
     ],
-    temperature=0.7,
+    temperature=0.0,
 )
 
 print(resp.choices[0].message.content)

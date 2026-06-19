@@ -48,9 +48,9 @@ PARAGRAPH_EN = (
 # Same paragraph, in your language. The default is Spanish; replace it with
 # YOUR language for the exercise.
 PARAGRAPH_MINE = (
-    "Un gran modelo de lenguaje lee el texto como tokens, no como palabras. "
-    "El número de tokens — no el de palabras — es lo que se te factura y lo "
-    "que tiene que caber en la ventana de contexto."
+"Les modèles de langage modernes traitent le texte sous forme de tokens,"
+"et non comme des mots complets. Le nombre de tokens influence le coût "
+"d'utilisation et la quantité de contexte que le modèle peut traiter."
 )
 
 # ---- four code-ish inputs for the tokenizer comparison ---------------------
@@ -93,7 +93,7 @@ def main() -> None:
 
     print("\n[1] Load a tokenizer and count tokens")
     tok_a = _load(TOKENIZER_A)
-    demo = "The model never sees the letters in strawberry."
+    demo = "Bananas are better than strawberrys, and mixed together, they can blow your mind."
     print(f'  text : "{demo}"')
     print(f"  tokens with {TOKENIZER_A}: {n_tokens(tok_a, demo)}")
 

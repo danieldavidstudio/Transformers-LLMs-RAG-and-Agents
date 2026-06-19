@@ -19,5 +19,5 @@ curl "$ENDPOINT/chat/completions" \
       {"role": "system", "content": "You are a terse assistant."},
       {"role": "user",   "content": "Say hello in one sentence."}
     ],
-    "temperature": 0.7
+    "temperature": 1.5
   }'
