@@ -89,7 +89,7 @@ In-chat commands:
 
 | Command | What it does |
 |---|---|
-| `/mode user-augment` · `/mode system-grounding` | switch where the file goes (resets the conversation) |
+| `/mode user-augment` · `/mode system-grounding` | switch where the file goes (resets the conversation). No argument **toggles**; spaces/underscores/dashes and short aliases (`system`/`grounding`/`sg`, `user`/`augment`/`ua`) all resolve |
 | `/stateful` | toggle storing augmented history (the stateful alternative) |
 | `/file <path>` | load a different knowledge file |
 | `/context` | print the loaded knowledge file |

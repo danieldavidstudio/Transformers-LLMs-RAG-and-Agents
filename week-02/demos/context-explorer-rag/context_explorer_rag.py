@@ -48,7 +48,10 @@ Usage:
     3. (optional) RAG_MODE=system-grounding  KNOWLEDGE_FILE=mynotes.txt  uv run context_explorer_rag.py
 
 In-chat commands:
-    /mode user-augment | system-grounding   switch placement (resets the conversation)
+    /mode [user-augment|system-grounding]   switch placement (resets the conversation);
+                                            no argument toggles. Spaces/underscores/dashes
+                                            and short aliases (system, grounding, sg / user,
+                                            augment, ua) all resolve.
     /stateful                                toggle storing augmented history (the stateful alternative)
     /file <path>                             load a different knowledge file
     /context                                 print the loaded knowledge file
@@ -70,6 +73,20 @@ from rich import box
 
 load_dotenv()
 
+# High-contrast Rich theme — avoids deep blue / muted gray on dark panel backgrounds.
+BG = "grey23"
+ON_BG = f"on {BG}"
+TEXT = f"bright_white {ON_BG}"
+TEXT_DIM = f"grey84 {ON_BG}"
+ACCENT = f"cyan1 {ON_BG}"
+ACCENT_BOLD = f"bold cyan1 {ON_BG}"
+ROLE = f"sky_blue1 {ON_BG}"
+ALERT = f"salmon1 {ON_BG}"
+COST = f"orange1 {ON_BG}"
+BORDER = "bright_cyan"
+BORDER_ALERT = "light_coral"
+INPUT_PROMPT = "[bold bright_cyan]👤 You: [/bold bright_cyan]"
+
 console = Console()
 client = None
 
@@ -87,6 +104,34 @@ SYSTEM_PROMPT_BASE = "Answer using only the context provided. If the answer is n
 
 # The RAG prompt template — the shape students reuse all week.
 PROMPT_TEMPLATE = "Context:\n----\n{context}\n----\n\nQuestion: {question}"
+
+# Accept loosely-typed mode arguments. The two canonical names are hyphenated
+# ("user-augment", "system-grounding"), but on camera (and for students) it is
+# easy to type a space instead of the hyphen, or to autocorrect the hyphen into a
+# dash. Map all of those — plus short aliases — onto the canonical mode.
+_MODE_ALIASES = {
+    "user-augment": MODE_USER_AUGMENT, "user": MODE_USER_AUGMENT,
+    "augment": MODE_USER_AUGMENT, "ua": MODE_USER_AUGMENT,
+    "system-grounding": MODE_SYSTEM_GROUNDING, "system": MODE_SYSTEM_GROUNDING,
+    "grounding": MODE_SYSTEM_GROUNDING, "sg": MODE_SYSTEM_GROUNDING,
+}
+
+
+def _resolve_mode(raw: str, current: str):
+    """Map a loosely-typed `/mode` argument to a canonical mode.
+
+    Empty argument → toggle to the other mode. Spaces, underscores and any dash
+    variant are normalised to a single hyphen, so "system grounding",
+    "system_grounding" and "system–grounding" all resolve. Returns None if the
+    argument is non-empty and still unrecognised.
+    """
+    s = raw.strip().lower()
+    for dash in ("–", "—", "−", "_"):  # – — − _  → hyphen
+        s = s.replace(dash, "-")
+    s = "-".join(s.split())  # collapse whitespace runs into a single hyphen
+    if not s:
+        return MODE_SYSTEM_GROUNDING if current == MODE_USER_AUGMENT else MODE_USER_AUGMENT
+    return _MODE_ALIASES.get(s)
 
 
 # =============================================================================================================== #
@@ -222,47 +267,53 @@ def show_flow(mode: str, stateful: bool) -> Panel:
     """The three-layer boundary diagram — shown at start and on mode/stateful switch."""
     aug = "store AUGMENTED history (stateful)" if stateful else "augmentation NOT saved (stateless)"
     body = Text()
-    body.append("🖥️  CHAT UI", style="bold bright_blue on grey23")
-    body.append("        sends:  history (bare) + your latest message\n", style="bright_white on grey23")
-    body.append("                       │  history = what you see; no system, no augmentation\n", style="grey70 on grey23")
-    body.append("                       ▼\n", style="grey70 on grey23")
-    body.append("🛠️  ASSISTANT ENDPOINT", style="bold bright_yellow on grey23")
-    body.append(f"  (STATELESS; mode = {mode})\n", style="bright_white on grey23")
-    body.append("        builds:  [system] + [history] + [ this turn's user content ]\n", style="bright_white on grey23")
-    body.append("                       │  rebuilt every call — no state to keep it in\n", style="grey70 on grey23")
-    body.append("                       ▼\n", style="grey70 on grey23")
-    body.append("🧠  LLM", style="bold bright_green on grey23")
-    body.append("            returns:  the response only\n", style="bright_white on grey23")
-    body.append("                       ▲\n", style="grey70 on grey23")
-    body.append("🖥️  CHAT UI", style="bold bright_blue on grey23")
-    body.append(f"        appends (your message, response) → history   ✗ {aug}", style="bright_white on grey23")
-    return Panel(body, title="🔁 The three layers", border_style="bright_magenta", style="on grey23", padding=(1, 2))
+    body.append("🖥️  CHAT UI", style=f"bold {ROLE}")
+    body.append("        sends:  history (bare) + your latest message\n", style=TEXT)
+    body.append("                       │  history = what you see; no system, no augmentation\n", style=TEXT_DIM)
+    body.append("                       ▼\n", style=TEXT_DIM)
+    body.append("🛠️  ASSISTANT ENDPOINT", style=f"bold bright_yellow {ON_BG}")
+    body.append(f"  (STATELESS; mode = {mode})\n", style=TEXT)
+    if mode == MODE_SYSTEM_GROUNDING:
+        builds = "        builds:  [system ＋ FILE] + [history] + [user: your message — bare]\n"
+    else:
+        builds = "        builds:  [system] + [history] + [user: template(FILE, your message)]\n"
+    body.append(builds, style=TEXT)
+    body.append("                       │  rebuilt every call — no state to keep it in\n", style=TEXT_DIM)
+    body.append("                       ▼\n", style=TEXT_DIM)
+    body.append("🧠  LLM", style=f"bold bright_green {ON_BG}")
+    body.append("            returns:  the response only\n", style=TEXT)
+    body.append("                       ▲\n", style=TEXT_DIM)
+    body.append("🖥️  CHAT UI", style=f"bold {ROLE}")
+    body.append(f"        appends (your message, response) → history   ✗ {aug}", style=TEXT)
+    return Panel(body, title="🔁 The three layers", border_style="bright_magenta", style=ON_BG, padding=(1, 2))
 
 
 def show_ui_send(outgoing: list) -> Panel:
     """What the Chat UI sends to the endpoint — bare history + the new message."""
-    table = Table(box=box.SIMPLE, show_header=True, header_style="bold bright_white on grey23", style="on grey23")
-    table.add_column("#", style="bright_cyan on grey23", width=3)
-    table.add_column("Role", style="bright_blue on grey23", width=10)
-    table.add_column("Content (bare — no system, no augmentation)", style="bright_white on grey23")
+    table = Table(box=box.SIMPLE, show_header=True, header_style=f"bold {TEXT}", style=ON_BG)
+    table.add_column("#", style=f"bright_cyan {ON_BG}", width=3)
+    table.add_column("Role", style=ROLE, width=10)
+    table.add_column("Content (bare — no system, no augmentation)", style=TEXT)
     for i, m in enumerate(outgoing):
         table.add_row(str(i), m["role"], _truncate(m["content"]))
-    return Panel(table, title="🖥️ → 🛠️  Chat UI sends to the endpoint", border_style="blue", style="on grey23", padding=(0, 1))
+    return Panel(table, title="🖥️ → 🛠️  Chat UI sends to the endpoint", border_style=BORDER, style=ON_BG, padding=(0, 1))
 
 
 def show_endpoint_build(build: dict, mode: str) -> Panel:
     """What the stateless endpoint builds for the LLM — system + history + this turn's user content."""
     messages = build["messages"]
     aug_idx = build["augmented_index"]
-    table = Table(box=box.SIMPLE, show_header=True, header_style="bold bright_white on grey23", style="on grey23")
-    table.add_column("#", style="bright_cyan on grey23", width=3)
-    table.add_column("Role", style="bright_magenta on grey23", width=10)
-    table.add_column("Source / lifetime", style="bright_yellow on grey23", width=22)
-    table.add_column("Content", style="bright_white on grey23")
+    table = Table(box=box.SIMPLE, show_header=True, header_style=f"bold {TEXT}", style=ON_BG)
+    table.add_column("#", style=f"bright_cyan {ON_BG}", width=3)
+    table.add_column("Role", style=f"bright_magenta {ON_BG}", width=10)
+    table.add_column("Source / lifetime", style=f"bright_yellow {ON_BG}", width=26)
+    table.add_column("Content", style=TEXT)
     last = len(messages) - 1
+    grounded = mode == MODE_SYSTEM_GROUNDING
     for i, m in enumerate(messages):
         if m["role"] == "system":
-            src = "assistant config · static"
+            # In system-grounding the file lives in this system message — flag it.
+            src = "config ＋ FILE · static" if grounded else "assistant config · static"
         elif i == aug_idx:
             src = "★ built here · discarded"
         elif i == last:
@@ -270,67 +321,67 @@ def show_endpoint_build(build: dict, mode: str) -> Panel:
         else:
             src = "from UI · passed through"
         table.add_row(str(i), m["role"], src, _truncate(m["content"]))
-    note = Text(f"\nretrieval: {build['retrieval']}", style="italic bright_yellow on grey23")
+    note = Text(f"\nretrieval: {build['retrieval']}", style=f"bright_yellow {ON_BG}")
     grid = Table.grid()
     grid.add_row(table)
     grid.add_row(note)
     if aug_idx is not None:
         grid.add_row(Text("★ the augmented message is built fresh now and thrown away — it never returns to the UI",
-                          style="italic bright_red on grey23"))
-    return Panel(grid, title="🛠️ → 🧠  Endpoint builds the LLM call (stateless)", border_style="yellow", style="on grey23", padding=(0, 1))
+                          style=f"bold {ALERT}"))
+    return Panel(grid, title="🛠️ → 🧠  Endpoint builds the LLM call (stateless)", border_style="yellow", style=ON_BG, padding=(0, 1))
 
 
 def show_api_request(messages: list) -> Panel:
     json_str = json.dumps({"model": MODEL, "messages": messages, "temperature": 0.7}, indent=2, ensure_ascii=False)
-    syntax = Syntax(json_str, "json", theme="monokai", background_color="grey23", word_wrap=True)
-    return Panel(syntax, title="📤 The actual request to the LLM", border_style="yellow", style="on grey23", padding=(0, 1))
+    syntax = Syntax(json_str, "json", theme="monokai", background_color=BG, word_wrap=True)
+    return Panel(syntax, title="📤 The actual request to the LLM", border_style="yellow", style=ON_BG, padding=(0, 1))
 
 
 def show_api_response(response_data: dict) -> Panel:
     json_str = json.dumps(response_data, indent=2, ensure_ascii=False)
-    syntax = Syntax(json_str, "json", theme="monokai", background_color="grey23", word_wrap=True)
-    return Panel(syntax, title="📥 LLM response", border_style="cyan", style="on grey23", padding=(0, 1))
+    syntax = Syntax(json_str, "json", theme="monokai", background_color=BG, word_wrap=True)
+    return Panel(syntax, title="📥 LLM response", border_style="bright_cyan", style=ON_BG, padding=(0, 1))
 
 
 def show_ui_history(history: list, stateful: bool) -> Panel:
     """What the Chat UI keeps after the turn — what the user sees / what gets stored."""
-    table = Table(box=box.SIMPLE, show_header=True, header_style="bold bright_white on grey23", style="on grey23")
-    table.add_column("#", style="bright_cyan on grey23", width=3)
-    table.add_column("Role", style="bright_blue on grey23", width=10)
-    table.add_column("Content", style="bright_white on grey23")
+    table = Table(box=box.SIMPLE, show_header=True, header_style=f"bold {TEXT}", style=ON_BG)
+    table.add_column("#", style=f"bright_cyan {ON_BG}", width=3)
+    table.add_column("Role", style=ROLE, width=10)
+    table.add_column("Content", style=TEXT)
     for i, m in enumerate(history):
         table.add_row(str(i), m["role"], _truncate(m["content"]))
     if stateful:
         cap = "STATEFUL: augmented user turns ARE stored — the file now rides in history too"
-        style = "italic bright_red on grey23"
+        style = f"bold {ALERT}"
     else:
         cap = "no system prompt · no augmentation · just the turns the user saw"
-        style = "italic grey70 on grey23"
+        style = TEXT_DIM
     grid = Table.grid()
     grid.add_row(table)
     grid.add_row(Text(cap, style=style))
-    return Panel(grid, title="🖥️  Chat UI history (what the user sees / what is stored)", border_style="blue", style="on grey23", padding=(0, 1))
+    return Panel(grid, title="🖥️  Chat UI history (what the user sees / what is stored)", border_style=BORDER, style=ON_BG, padding=(0, 1))
 
 
 def show_cost(history_tokens: list) -> Panel:
-    table = Table(box=box.SIMPLE, show_header=True, header_style="bold bright_white on grey23", style="on grey23")
-    table.add_column("Turn", style="bright_cyan on grey23", width=5)
-    table.add_column("prompt_tokens", style="bright_yellow on grey23", width=14)
-    table.add_column("cached", style="bright_green on grey23", width=8)
-    table.add_column("", style="bright_red on grey23")
+    table = Table(box=box.SIMPLE, show_header=True, header_style=f"bold {TEXT}", style=ON_BG)
+    table.add_column("Turn", style=f"bright_cyan {ON_BG}", width=5)
+    table.add_column("prompt_tokens", style=f"bright_yellow {ON_BG}", width=14)
+    table.add_column("cached", style=f"bright_green {ON_BG}", width=8)
+    table.add_column("", style=COST)
     peak = max((t[0] for t in history_tokens), default=1) or 1
     for i, (pt, cached) in enumerate(history_tokens, start=1):
         bar = "█" * max(1, int(26 * pt / peak))
         table.add_row(str(i), str(pt), ("—" if cached is None else str(cached)), bar)
-    return Panel(table, title="💸 Token cost per turn (prompt_tokens · cached)", border_style="red", style="on grey23", padding=(0, 1))
+    return Panel(table, title="💸 Token cost per turn (prompt_tokens · cached)", border_style=BORDER_ALERT, style=ON_BG, padding=(0, 1))
 
 
 def show_message(role: str, content: str) -> Panel:
     styles = {
-        "user": ("bright_white on blue", "blue", "👤 You"),
+        "user": ("bright_white on dodger_blue1", BORDER, "👤 You"),
         "assistant": ("bright_white on dark_green", "green", "🤖 Assistant"),
     }
-    text_style, border, title = styles.get(role, ("bright_white on grey23", "white", role))
+    text_style, border, title = styles.get(role, (TEXT, "white", role))
     return Panel(Text(content, style=text_style), title=title, border_style=border, padding=(0, 1))
 
 
@@ -349,30 +400,44 @@ def show_setup(retriever: "WholeFileRetriever", mode: str) -> Panel:
     if len(file_text) > 1500:
         file_text = file_text[:1500] + f"\n… [+{len(retriever.text) - 1500} more chars]"
 
-    if mode == MODE_SYSTEM_GROUNDING:
-        sys_note = "in this mode the knowledge file is appended to the system prompt (retrieved once, at setup)"
-        tmpl_note = "not used in this mode — your message is sent bare; the file lives in the system prompt"
-        where = "the SYSTEM PROMPT, once"
-    else:
-        sys_note = "just the instruction; the file is injected per turn through the prompt template below"
-        tmpl_note = "used every turn — the file goes in {context}, your message in {question}"
-        where = "the PROMPT TEMPLATE, every turn"
+    sg = mode == MODE_SYSTEM_GROUNDING
 
     g = Table.grid(padding=(0, 0))
-    g.add_row(Text("① SYSTEM PROMPT", style="bold bright_magenta on grey23"))
-    g.add_row(Text(SYSTEM_PROMPT_BASE, style="bright_white on grey23"))
-    g.add_row(Text(f"   ↳ {sys_note}", style="italic grey70 on grey23"))
-    g.add_row(Text("", style="on grey23"))
-    g.add_row(Text("② PROMPT TEMPLATE", style="bold bright_yellow on grey23"))
-    g.add_row(Text(PROMPT_TEMPLATE, style="bright_white on grey23"))
-    g.add_row(Text(f"   ↳ {tmpl_note}", style="italic grey70 on grey23"))
-    g.add_row(Text("", style="on grey23"))
+
+    # ① SYSTEM PROMPT — in system-grounding the file is concatenated INTO it.
+    g.add_row(Text("① SYSTEM PROMPT", style=f"bold bright_magenta {ON_BG}"))
+    g.add_row(Text(SYSTEM_PROMPT_BASE, style=TEXT))
+    if sg:
+        g.add_row(Text("        ＋ knowledge file ③ concatenated here — retrieved ONCE, at setup",
+                       style=f"bold bright_green {ON_BG}"))
+        g.add_row(Text("   ↳ in system-grounding the file IS part of the system prompt; the template below is dead",
+                       style=TEXT_DIM))
+    else:
+        g.add_row(Text("   ↳ user-augment: just the instruction — the file is NOT here; it rides in each user "
+                       "message via the template ↓", style=TEXT_DIM))
+    g.add_row(Text("", style=ON_BG))
+
+    # ② PROMPT TEMPLATE — active in user-augment, dead in system-grounding.
+    if sg:
+        g.add_row(Text("② PROMPT TEMPLATE   ⛔ NOT USED IN THIS MODE", style=f"bold bright_red {ON_BG}"))
+        g.add_row(Text(PROMPT_TEMPLATE, style=TEXT_DIM))
+        g.add_row(Text("   ↳ inactive — your message is sent bare; the file already lives in the system prompt above",
+                       style=TEXT_DIM))
+    else:
+        g.add_row(Text("② PROMPT TEMPLATE   ✅ USED EVERY TURN", style=f"bold bright_yellow {ON_BG}"))
+        g.add_row(Text(PROMPT_TEMPLATE, style=TEXT))
+        g.add_row(Text("   ↳ rebuilt every turn — the file goes into {context}, your message into {question}",
+                       style=TEXT_DIM))
+    g.add_row(Text("", style=ON_BG))
+
+    # ③ KNOWLEDGE FILE — and where it flows in THIS mode.
+    where = "the SYSTEM PROMPT ① (once, at setup)" if sg else "the PROMPT TEMPLATE ② {context} (every turn)"
     g.add_row(Text(f"③ KNOWLEDGE FILE · {os.path.basename(retriever.path)} "
-                   f"({len(retriever.text)} chars, ~{_approx_tokens(retriever.text)} tokens) "
-                   f"→ goes into {where}", style="bold bright_green on grey23"))
-    g.add_row(Text(file_text, style="grey70 on grey23"))
-    return Panel(g, title="🧩 Assistant setup — disclosed before any message",
-                 border_style="bright_cyan", style="on grey23", padding=(1, 2))
+                   f"({len(retriever.text)} chars, ~{_approx_tokens(retriever.text)} tokens)   "
+                   f"→  goes into {where}", style=f"bold bright_green {ON_BG}"))
+    g.add_row(Text(file_text, style=TEXT_DIM))
+    return Panel(g, title=f"🧩 Assistant setup — mode = {mode}",
+                 border_style="bright_cyan", style=ON_BG, padding=(1, 2))
 
 
 # =============================================================================================================== #
@@ -388,9 +453,9 @@ def run_chat(retriever: WholeFileRetriever, mode: str):
     console.print(Panel(
         Text("Ask about the knowledge file. Each turn shows the gap between what the\n"
              "CHAT UI keeps (bare turns) and what the stateless ENDPOINT builds for the LLM.\n\n"
-             "/mode user-augment | system-grounding   ·   /stateful   ·   /file <path>   ·   /context   ·   (empty = quit)",
-             style="bright_white on grey23"),
-        title="📚 Context Explorer — single-file RAG", border_style="bright_magenta", style="on grey23", padding=(1, 2)))
+             "/mode [user-augment | system-grounding]  (no arg = toggle)   ·   /stateful   ·   /file <path>   ·   /context   ·   (empty = quit)",
+             style=TEXT),
+        title="📚 Context Explorer — single-file RAG", border_style="bright_magenta", style=ON_BG, padding=(1, 2)))
     console.print()
     console.print(show_flow(mode, ui.stateful_augment))
     console.print()
@@ -398,35 +463,40 @@ def run_chat(retriever: WholeFileRetriever, mode: str):
 
     while True:
         console.print()
-        user_input = console.input("[bold blue]👤 You: [/bold blue]")
+        user_input = console.input(INPUT_PROMPT)
         cmd = user_input.strip()
 
         if not cmd:
-            console.print(Panel(Text("Goodbye!", style="bright_white on grey23"), border_style="dim"))
+            console.print(Panel(Text("Goodbye!", style=TEXT), border_style="dim"))
             break
         if cmd == "/context":
-            console.print(Panel(Text(retriever.text, style="grey70 on grey23"),
-                                title=f"📄 {os.path.basename(retriever.path)}", border_style="green", style="on grey23"))
+            console.print(Panel(Text(retriever.text, style=TEXT_DIM),
+                                title=f"📄 {os.path.basename(retriever.path)}", border_style="green", style=ON_BG))
             continue
         if cmd == "/stateful":
             ui.stateful_augment = not ui.stateful_augment
             ui.history = []
             console.print(Panel(Text(f"stateful_augment = {ui.stateful_augment} · conversation reset.",
-                                     style="bright_white on grey23"), border_style="green", style="on grey23"))
+                                     style=TEXT), border_style="green", style=ON_BG))
             console.print(show_flow(mode, ui.stateful_augment))
             continue
-        if cmd.startswith("/mode "):
-            new_mode = cmd[len("/mode "):].strip()
-            if new_mode not in (MODE_USER_AUGMENT, MODE_SYSTEM_GROUNDING):
-                console.print(Panel(Text(f"unknown mode '{new_mode}'. Use: {MODE_USER_AUGMENT} | {MODE_SYSTEM_GROUNDING}",
+        if cmd == "/mode" or cmd.startswith("/mode "):
+            new_mode = _resolve_mode(cmd[len("/mode"):], mode)
+            if new_mode is None:
+                console.print(Panel(Text(f"unknown mode. Use: {MODE_USER_AUGMENT} | {MODE_SYSTEM_GROUNDING} "
+                                         f"(or just /mode to toggle).",
                                          style="bold bright_white on dark_red"), border_style="red", style="on dark_red"))
+                continue
+            if new_mode == mode:
+                console.print(Panel(Text(f"already in mode = {mode}.", style=TEXT),
+                                    border_style="green", style=ON_BG))
                 continue
             mode = new_mode
             endpoint = AssistantEndpoint(retriever, mode)
             ui.history = []
             token_history = []
-            console.print(Panel(Text(f"mode = {mode} · conversation reset.", style="bright_white on grey23"),
-                                border_style="green", style="on grey23"))
+            console.print(Panel(Text(f"mode = {mode} · conversation reset.", style=TEXT),
+                                border_style="green", style=ON_BG))
             console.print(show_flow(mode, ui.stateful_augment))
             console.print()
             console.print(show_setup(retriever, mode))
@@ -439,7 +509,7 @@ def run_chat(retriever: WholeFileRetriever, mode: str):
                 ui.history = []
                 token_history = []
                 console.print(Panel(Text(f"Loaded {new_path} ({len(retriever.text)} chars) · conversation reset.",
-                                         style="bright_white on grey23"), border_style="green", style="on grey23"))
+                                         style=TEXT), border_style="green", style=ON_BG))
                 console.print()
                 console.print(show_setup(retriever, mode))
             except OSError as exc:
@@ -520,8 +590,8 @@ def main():
              f"Endpoint  : {OPENAI_ENDPOINT or 'https://api.openai.com/v1'}\n"
              f"Knowledge : {os.path.basename(knowledge_path)} ({len(retriever.text)} chars, ~{_approx_tokens(retriever.text)} tokens)\n"
              f"Mode      : {RAG_MODE}",
-             style="bright_white on grey23"),
-        title="⚙️ Configuration", border_style="cyan", style="on grey23"))
+             style=TEXT),
+        title="⚙️ Configuration", border_style="bright_cyan", style=ON_BG))
 
     run_chat(retriever, RAG_MODE)
 
