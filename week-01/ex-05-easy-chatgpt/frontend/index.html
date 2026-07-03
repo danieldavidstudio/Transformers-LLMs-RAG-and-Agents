@@ -9,7 +9,21 @@
   <body>
     <main>
       <h1>Easy ChatGPT</h1>
-      <p>Milestone 1 project scaffold.</p>
+
+      <div id="messages" aria-live="polite"></div>
+
+      <form id="chat-form">
+        <label for="message-input">Message</label>
+        <div class="input-row">
+          <input
+            id="message-input"
+            type="text"
+            placeholder="Type a message"
+            required
+          >
+          <button type="submit">Send</button>
+        </div>
+      </form>
     </main>
     <script src="app.js"></script>
   </body>
