@@ -45,7 +45,74 @@ function renderAssistants(assistants) {
     const templateText = document.createElement("pre");
     templateText.textContent = assistant.prompt_template;
 
-    card.append(name, systemLabel, systemText, templateLabel, templateText);
+    const documentLabel = document.createElement("strong");
+    documentLabel.textContent = "Context document";
+
+    const documentStatus = document.createElement("p");
+    documentStatus.className = "document-status";
+    documentStatus.textContent = assistant.has_document
+      ? `${assistant.document_filename} (${assistant.document_char_count} characters)`
+      : "No document uploaded.";
+
+    const uploadForm = document.createElement("form");
+    uploadForm.className = "document-upload-form";
+
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = ".txt,text/plain";
+    fileInput.required = true;
+    fileInput.setAttribute("aria-label", `Text document for ${assistant.name}`);
+
+    const uploadButton = document.createElement("button");
+    uploadButton.type = "submit";
+    uploadButton.textContent = assistant.has_document
+      ? "Replace document"
+      : "Upload document";
+
+    uploadForm.append(fileInput, uploadButton);
+    uploadForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const file = fileInput.files[0];
+      if (!file) {
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+      uploadButton.disabled = true;
+      documentStatus.textContent = "Uploading...";
+
+      try {
+        const response = await fetch(
+          `/assistants/${encodeURIComponent(assistant.id)}/document`,
+          {
+            method: "POST",
+            body: formData,
+          },
+        );
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.detail ?? "Could not upload document.");
+        }
+
+        await loadAssistants();
+      } catch (error) {
+        documentStatus.textContent = error.message;
+        uploadButton.disabled = false;
+      }
+    });
+
+    card.append(
+      name,
+      systemLabel,
+      systemText,
+      templateLabel,
+      templateText,
+      documentLabel,
+      documentStatus,
+      uploadForm,
+    );
     assistantList.appendChild(card);
   }
 }

@@ -71,6 +71,9 @@ class AssistantCreate(BaseModel):
 class Assistant(AssistantCreate):
     id: str
     created_at: str
+    has_document: bool = False
+    document_filename: str | None = None
+    document_char_count: int | None = None
 
 
 def read_assistants() -> list[Assistant]:
@@ -128,6 +131,55 @@ def create_assistant(request: AssistantCreate) -> Assistant:
 @app.get("/assistants", response_model=list[Assistant])
 def list_assistants() -> list[Assistant]:
     return read_assistants()
+
+
+@app.post("/assistants/{assistant_id}/document", response_model=Assistant)
+async def upload_assistant_document(
+    assistant_id: str,
+    file: UploadFile = File(...),
+) -> Assistant:
+    filename = file.filename or ""
+    if file.content_type != "text/plain" or Path(filename).suffix.lower() != ".txt":
+        raise HTTPException(
+            status_code=400,
+            detail="The document must be a plain-text .txt file.",
+        )
+
+    assistants = read_assistants()
+    assistant = next(
+        (item for item in assistants if item.id == assistant_id),
+        None,
+    )
+    if assistant is None:
+        raise HTTPException(status_code=404, detail="Assistant not found.")
+
+    file_bytes = await file.read()
+    try:
+        document_text = file_bytes.decode("utf-8-sig")
+    except UnicodeDecodeError as error:
+        raise HTTPException(
+            status_code=400,
+            detail="The document must contain UTF-8 plain text.",
+        ) from error
+
+    document_dir = assistants_file.parent / "assistants" / assistant.id
+    document_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        (document_dir / "knowledge.txt").write_text(
+            document_text,
+            encoding="utf-8",
+        )
+    except OSError as error:
+        raise HTTPException(
+            status_code=500,
+            detail="Could not save the document.",
+        ) from error
+
+    assistant.has_document = True
+    assistant.document_filename = Path(filename).name
+    assistant.document_char_count = len(document_text)
+    write_assistants(assistants)
+    return assistant
 
 
 @app.post("/chat", response_model=ChatResponse)

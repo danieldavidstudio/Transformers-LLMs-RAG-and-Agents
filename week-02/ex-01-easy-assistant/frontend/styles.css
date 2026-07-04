@@ -82,6 +82,30 @@ textarea {
   font: inherit;
 }
 
+.document-status {
+  color: #555;
+}
+
+.document-upload-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.document-upload-form input {
+  min-width: 0;
+  margin: 0;
+}
+
+.document-upload-form button {
+  flex: 0 0 auto;
+}
+
+.document-upload-form button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .app-layout {
   display: grid;
   gap: 1.5rem;
