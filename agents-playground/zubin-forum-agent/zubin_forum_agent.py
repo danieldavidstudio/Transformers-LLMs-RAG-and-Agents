@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+from orchestra.zubin import Zubin
 from tools.moodle import MOODLE_CLI_PATH, PROFILE, read_discussion
 
 
@@ -152,6 +153,7 @@ def main():
         # On the first run, remember the current thread as the baseline.
         # Existing posts are deliberately not treated as new.
         state["seen_post_ids"] = [post.id for post in posts]
+        new_posts = []
         print()
         print("First run detected.")
         print("Memory initialized.")
@@ -172,6 +174,30 @@ def main():
     # Record when the read finished and persist the updated memory.
     state["last_checked"] = datetime.now(timezone.utc).isoformat()
     save_state(state)
+
+    # Ask Zubin to reason about the new posts. This only produces advice:
+    # it does not post anything and does not request approval.
+    conductor = Zubin(own_author=PROFILE)
+    recommendation = conductor.recommend(
+        new_posts=new_posts,
+        reply_count=max(len(posts) - 1, 0),
+    )
+
+    print()
+    print("===========================")
+    print("ZUBIN'S RECOMMENDATION")
+    print("===========================")
+    print(f"Should reply: {recommendation.should_reply}")
+    print(f"Confidence: {recommendation.confidence:.0%}")
+    print(f"Reason: {recommendation.reason}")
+    print("Draft:")
+
+    # Empty draft fields make a "do not reply" recommendation explicit.
+    if recommendation.draft_message:
+        print(f"Subject: {recommendation.draft_subject}")
+        print(recommendation.draft_message)
+    else:
+        print("No draft needed.")
 
     print()
     print("Ready for reasoning.")
