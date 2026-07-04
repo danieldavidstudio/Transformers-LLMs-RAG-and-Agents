@@ -2,7 +2,7 @@
 
 Approval is deliberately separate from recommendation logic. Musicians can
 suggest an action, but only a human can authorize a later external action.
-This milestone records that decision and does not post anything.
+The caller decides how to execute an approved recommendation.
 """
 
 from dataclasses import dataclass
@@ -23,7 +23,7 @@ def request_human_approval(
 ) -> ApprovalRequest:
     """Show a recommendation and ask a human to approve or reject it."""
 
-    # Present every part of the recommendation before asking for a decision.
+    # Show the complete proposal before asking for a decision.
     print("==================================")
     print("ZUBIN'S RECOMMENDATION")
     print("==================================")
@@ -38,7 +38,7 @@ def request_human_approval(
     print(recommendation.draft_message)
     print()
 
-    # Only an explicit lowercase or uppercase "y" grants approval.
+    # Only an explicit "y" grants approval.
     answer = input("Approve this action? [y/N] ")
     approved = answer.strip().casefold() == "y"
 
@@ -46,4 +46,3 @@ def request_human_approval(
         recommendation=recommendation,
         approved=approved,
     )
-

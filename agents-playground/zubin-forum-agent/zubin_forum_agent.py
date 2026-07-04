@@ -6,7 +6,6 @@ from pathlib import Path
 from approval import request_human_approval
 from orchestra.zubin import Zubin
 from tools.moodle import (
-    MOODLE_CLI_PATH,
     PROFILE,
     read_discussion,
     reply_to_post,
@@ -181,16 +180,14 @@ def main():
     state["last_checked"] = datetime.now(timezone.utc).isoformat()
     save_state(state)
 
-    # Ask Zubin to reason about the new posts. This only produces advice:
-    # it does not post anything and does not request approval.
+    # Zubin delegates analysis of new posts to Turing.
     conductor = Zubin(own_author=PROFILE)
     recommendation = conductor.recommend(
         new_posts=new_posts,
         reply_count=max(len(posts) - 1, 0),
     )
 
-    # A human must review the recommendation before any future action.
-    # Approval is recorded, but this milestone deliberately does not post.
+    # A human must review the recommendation before the write tool is called.
     print()
     approval_request = request_human_approval(recommendation)
 

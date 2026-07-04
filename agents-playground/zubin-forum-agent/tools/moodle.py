@@ -74,9 +74,3 @@ def reply_to_post(post_id: int, subject: str, message: str) -> str:
             message,
         ]
     )
-
-
-def read_grumpy_thread() -> str:
-    """Read Grumpy's discussion using its known discussion ID."""
-
-    return read_discussion(1446)
