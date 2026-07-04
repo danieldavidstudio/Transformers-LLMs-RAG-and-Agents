@@ -31,6 +31,21 @@ class ChatResponse(BaseModel):
     finish_reason: str | None
 
 
+class AssistantChatRequest(BaseModel):
+    assistant_id: str
+    message: str
+
+
+class AssistantChatResponse(BaseModel):
+    reply: str
+    assistant_id: str
+    assistant_name: str
+    filled_prompt: str
+    messages: list[dict[str, str]]
+    usage: dict[str, Any]
+    finish_reason: str | None
+
+
 class VisionResponse(BaseModel):
     prompt: str
     reply: str
@@ -131,6 +146,74 @@ def create_assistant(request: AssistantCreate) -> Assistant:
 @app.get("/assistants", response_model=list[Assistant])
 def list_assistants() -> list[Assistant]:
     return read_assistants()
+
+
+@app.post("/assistants/chat", response_model=AssistantChatResponse)
+def assistant_chat(request: AssistantChatRequest) -> AssistantChatResponse:
+    assistants = read_assistants()
+    assistant = next(
+        (item for item in assistants if item.id == request.assistant_id),
+        None,
+    )
+    if assistant is None:
+        raise HTTPException(status_code=404, detail="Assistant not found.")
+    if not assistant.has_document:
+        raise HTTPException(
+            status_code=400,
+            detail="The selected assistant does not have a document.",
+        )
+
+    document_path = (
+        assistants_file.parent
+        / "assistants"
+        / assistant.id
+        / "knowledge.txt"
+    )
+    try:
+        document_text = document_path.read_text(encoding="utf-8")
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status_code=404,
+            detail="The assistant document could not be found.",
+        ) from error
+    except OSError as error:
+        raise HTTPException(
+            status_code=500,
+            detail="Could not read the assistant document.",
+        ) from error
+
+    filled_prompt = (
+        assistant.prompt_template
+        .replace("{context}", document_text)
+        .replace("{user_input}", request.message)
+    )
+    messages = [
+        {"role": "system", "content": assistant.system_prompt},
+        {"role": "user", "content": filled_prompt},
+    ]
+
+    endpoint = os.getenv("OPENAI_ENDPOINT")
+    api_key = os.getenv("OPENAI_API_KEY")
+    model = os.getenv("MODEL")
+    if not endpoint or not api_key or not model:
+        raise HTTPException(status_code=500, detail="OpenAI configuration is missing.")
+
+    client = OpenAI(base_url=endpoint, api_key=api_key)
+    completion = client.chat.completions.create(
+        model=model,
+        messages=messages,
+    )
+    choice = completion.choices[0]
+
+    return AssistantChatResponse(
+        reply=choice.message.content or "",
+        assistant_id=assistant.id,
+        assistant_name=assistant.name,
+        filled_prompt=filled_prompt,
+        messages=messages,
+        usage=completion.usage.model_dump() if completion.usage else {},
+        finish_reason=choice.finish_reason,
+    )
 
 
 @app.post("/assistants/{assistant_id}/document", response_model=Assistant)

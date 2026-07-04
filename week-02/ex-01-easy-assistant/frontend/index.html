@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EASY-ASSISTANT</title>
-    <link rel="stylesheet" href="styles.css?v=9">
+    <link rel="stylesheet" href="styles.css?v=10">
   </head>
   <body>
     <main>
@@ -50,6 +50,9 @@ User:
 
       <div class="app-layout">
         <section class="chat-panel" aria-label="Chat">
+          <p id="selected-assistant" class="selected-assistant">
+            No assistant selected
+          </p>
           <div id="messages" aria-live="polite"></div>
 
           <form id="chat-form">
@@ -76,7 +79,10 @@ User:
         <section id="debug-panel" class="debug-panel" hidden>
           <h2>Context / Debug</h2>
 
-          <h3>Prompt</h3>
+          <h3>Selected assistant</h3>
+          <p id="debug-assistant" class="debug-prompt">N/A</p>
+
+          <h3>Filled prompt template</h3>
           <p id="debug-prompt" class="debug-prompt">N/A</p>
 
           <h3>Messages sent to the model</h3>
@@ -106,6 +112,6 @@ User:
     </main>
     <script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/lib/marked.umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
-    <script src="app.js?v=11"></script>
+    <script src="app.js?v=12"></script>
   </body>
 </html>

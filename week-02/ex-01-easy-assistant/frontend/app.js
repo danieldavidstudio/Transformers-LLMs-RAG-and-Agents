@@ -5,6 +5,7 @@ const imageFilename = document.querySelector("#image-filename");
 const imagePreview = document.querySelector("#image-preview");
 const messages = document.querySelector("#messages");
 const debugPanel = document.querySelector("#debug-panel");
+const debugAssistant = document.querySelector("#debug-assistant");
 const debugPrompt = document.querySelector("#debug-prompt");
 const debugMessages = document.querySelector("#debug-messages");
 const promptTokens = document.querySelector("#prompt-tokens");
@@ -17,9 +18,21 @@ const systemPrompt = document.querySelector("#system-prompt");
 const promptTemplate = document.querySelector("#prompt-template");
 const assistantFormMessage = document.querySelector("#assistant-form-message");
 const assistantList = document.querySelector("#assistant-list");
+const selectedAssistantText = document.querySelector("#selected-assistant");
+let selectedAssistant = null;
+
+function updateSelectedAssistant() {
+  selectedAssistantText.textContent = selectedAssistant
+    ? `Selected assistant: ${selectedAssistant.name}`
+    : "No assistant selected";
+}
 
 function renderAssistants(assistants) {
   assistantList.replaceChildren();
+  const selectedId = selectedAssistant?.id;
+  selectedAssistant =
+    assistants.find((assistant) => assistant.id === selectedId) ?? null;
+  updateSelectedAssistant();
 
   if (assistants.length === 0) {
     const emptyMessage = document.createElement("p");
@@ -31,9 +44,22 @@ function renderAssistants(assistants) {
   for (const assistant of assistants) {
     const card = document.createElement("article");
     card.className = "assistant-card";
+    if (assistant.id === selectedAssistant?.id) {
+      card.classList.add("selected");
+    }
 
     const name = document.createElement("h3");
     name.textContent = assistant.name;
+
+    const selectButton = document.createElement("button");
+    selectButton.type = "button";
+    selectButton.className = "select-assistant-button";
+    selectButton.textContent =
+      assistant.id === selectedAssistant?.id ? "Selected" : "Select assistant";
+    selectButton.addEventListener("click", () => {
+      selectedAssistant = assistant;
+      renderAssistants(assistants);
+    });
 
     const systemLabel = document.createElement("strong");
     systemLabel.textContent = "System prompt";
@@ -105,6 +131,7 @@ function renderAssistants(assistants) {
 
     card.append(
       name,
+      selectButton,
       systemLabel,
       systemText,
       templateLabel,
@@ -217,6 +244,7 @@ function formatDebugContent(content) {
 
 function updateDebugView(data, prompt = data.prompt) {
   debugMessages.replaceChildren();
+  debugAssistant.textContent = displayValue(data.assistant_name);
   debugPrompt.textContent = displayValue(prompt);
 
   for (const modelMessage of data.messages ?? []) {
@@ -307,8 +335,19 @@ form.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   const userMessage = input.value.trim();
+  const image = imageInput.files[0];
 
   if (!userMessage) {
+    return;
+  }
+
+  if (!image && !selectedAssistant) {
+    addMessage("Error", "Select an assistant before sending a text message.");
+    return;
+  }
+
+  if (!image && !selectedAssistant.has_document) {
+    addMessage("Error", "Upload a document for the selected assistant first.");
     return;
   }
 
@@ -316,8 +355,6 @@ form.addEventListener("submit", async (event) => {
   input.value = "";
 
   try {
-    const image = imageInput.files[0];
-
     if (image) {
       const formData = new FormData();
       formData.append("prompt", userMessage);
@@ -338,22 +375,26 @@ form.addEventListener("submit", async (event) => {
       return;
     }
 
-    const response = await fetch("/chat/stream", {
+    const response = await fetch("/assistants/chat", {
       method: "POST",
       headers: {
-        "Accept": "text/event-stream",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ message: userMessage }),
+      body: JSON.stringify({
+        assistant_id: selectedAssistant.id,
+        message: userMessage,
+      }),
     });
 
     if (!response.ok) {
-      throw new Error("The request failed.");
+      const error = await response.json();
+      throw new Error(error.detail ?? "The assistant request failed.");
     }
 
-    const assistantContent = addMessage("Assistant", "", true);
-    await readChatStream(response, assistantContent, userMessage);
+    const data = await response.json();
+    addMessage(data.assistant_name, data.reply, true);
+    updateDebugView(data, data.filled_prompt);
   } catch (error) {
-    addMessage("Error", "Could not connect to the backend.");
+    addMessage("Error", error.message);
   }
 });
