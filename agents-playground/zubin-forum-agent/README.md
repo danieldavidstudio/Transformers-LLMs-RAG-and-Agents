@@ -25,10 +25,10 @@ a forum reply is appropriate.
 Moodle forum
     |
     v
-Moodle Tool (read_discussion)
+Moodle Tool (JSON → ForumPost objects)
     |
     v
-Zubin Agent (parse + remember)
+Zubin Agent (remember)
     |
     v
 Zubin Conductor ----delegates----> Turing Specialist
@@ -108,4 +108,3 @@ only after explicit approval.
 - More musicians: Mies, Rice, Rams
 - LLM-based reasoning
 - More tools: GitHub, Calendar, Gmail
-

@@ -1,10 +1,16 @@
-"""Read-only access to Moodle through the local moodle-cli project.
+"""Access Moodle through the local moodle-cli project.
 
 Tools are kept separate from agents so subprocess details live in one place.
-The agent can focus on its own parsing, memory, and presentation behavior.
+The agent receives Python objects and remains independent of CLI rendering.
 """
 
+import json
+import re
 import subprocess
+import sys
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any
 
 
 # The Moodle Tool owns the configuration needed to run moodle-cli.
@@ -12,46 +18,95 @@ MOODLE_CLI_PATH = r"C:\Users\USER\Documents\GitHub\moodle-cli"
 PROFILE = "artemis"
 
 
-def run_moodle(args: list[str]) -> str:
-    """Run a moodle-cli command and return its text output."""
+@dataclass
+class ForumPost:
+    """One forum post returned by Moodle."""
 
-    # Run the command from the moodle-cli project so uv uses that project.
-    result = subprocess.run(
-        ["uv", "run", "moodle", *args],
-        cwd=MOODLE_CLI_PATH,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    id: int
+    author: str
+    subject: str
+    message: str
+    timestamp: str
+
+
+def run_moodle(args: list[str]) -> str:
+    """Run moodle-cli in JSON mode and return its output."""
+
+    try:
+        # Run from the moodle-cli project so uv uses that environment.
+        result = subprocess.run(
+            ["uv", "run", "moodle", "-p", PROFILE, "--json", *args],
+            cwd=MOODLE_CLI_PATH,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError as error:
+        # Captured output would otherwise be hidden by the exception.
+        print("moodle-cli command failed.", file=sys.stderr)
+        if error.stderr:
+            print("stderr:", file=sys.stderr)
+            print(error.stderr, file=sys.stderr)
+        if error.stdout:
+            print("stdout:")
+            print(error.stdout)
+        raise
 
     return result.stdout
 
 
-def read_discussion(discussion_id: int) -> str:
-    """Read every post in one Moodle forum discussion."""
+def _author_name(author: dict[str, Any]) -> str:
+    """Choose the same author label previously shown in the CLI table."""
 
-    return run_moodle(
-        [
-            "--profile",
-            PROFILE,
-            "forum",
-            "posts",
-            str(discussion_id),
-        ]
+    return str(
+        author.get("fullname")
+        or author.get("name")
+        or author.get("id")
+        or "?"
     )
 
 
-def read_forum(forum_id: int) -> str:
-    """Read the discussions available in one Moodle forum."""
+def _plain_message(message: str) -> str:
+    """Convert Moodle HTML to the plain text used by the old table output."""
 
-    return run_moodle(
-        [
-            "--profile",
-            PROFILE,
-            "forum",
-            "discussions",
-            str(forum_id),
-        ]
+    without_tags = re.sub(r"<[^>]+>", " ", message or "")
+    return re.sub(r"\s+", " ", without_tags).strip()
+
+
+def _format_timestamp(timestamp: int) -> str:
+    """Format a Moodle timestamp like the old table output."""
+
+    if not timestamp:
+        return "-"
+    try:
+        return datetime.fromtimestamp(int(timestamp)).strftime("%Y-%m-%d %H:%M")
+    except (ValueError, OSError, OverflowError):
+        return str(timestamp)
+
+
+def read_discussion(discussion_id: int) -> list[ForumPost]:
+    """Read one discussion and convert its JSON posts to Python objects."""
+
+    items = json.loads(
+        run_moodle(["forum", "posts", str(discussion_id)])
+    )
+    return [
+        ForumPost(
+            id=int(item["id"]),
+            author=_author_name(item.get("author") or {}),
+            subject=str(item.get("subject") or ""),
+            message=_plain_message(str(item.get("message") or "")),
+            timestamp=_format_timestamp(int(item.get("timecreated") or 0)),
+        )
+        for item in items
+    ]
+
+
+def read_forum(forum_id: int) -> list[dict[str, Any]]:
+    """Read a forum and return its decoded discussion records."""
+
+    return json.loads(
+        run_moodle(["forum", "discussions", str(forum_id)])
     )
 
 
@@ -62,8 +117,6 @@ def reply_to_post(post_id: int, subject: str, message: str) -> str:
     # posting is allowed. The agent's human-approval workflow owns that choice.
     return run_moodle(
         [
-            "-p",
-            PROFILE,
             "forum",
             "reply",
             "--post-id",

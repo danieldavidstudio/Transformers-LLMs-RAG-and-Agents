@@ -1,11 +1,11 @@
 import json
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
 from approval import request_human_approval
 from orchestra.zubin import Zubin
 from tools.moodle import (
+    ForumPost,
     PROFILE,
     read_discussion,
     reply_to_post,
@@ -19,17 +19,6 @@ GRUMPY_ORIGINAL_POST_ID = 2662
 
 # Keep Zubin's local memory beside this Python file.
 STATE_PATH = Path(__file__).with_name("zubin_state.json")
-
-
-@dataclass
-class ForumPost:
-    """One forum post read from the moodle-cli table."""
-
-    id: int
-    author: str
-    subject: str
-    message: str
-    timestamp: str
 
 
 def load_state() -> dict:
@@ -69,59 +58,6 @@ def get_new_posts(
     return [post for post in posts if post.id not in seen_ids]
 
 
-def parse_forum_posts(raw_output: str) -> list[ForumPost]:
-    """Turn the current moodle-cli posts table into ForumPost objects."""
-
-    # Each item starts as five pieces of text matching the table columns.
-    rows: list[list[str]] = []
-    current_row: list[str] | None = None
-
-    # Read the table one displayed line at a time.
-    for line in raw_output.splitlines():
-        # Rich uses "|" on this Windows console and "│" on some terminals.
-        stripped_line = line.strip()
-        if stripped_line.startswith("|") and stripped_line.endswith("|"):
-            border = "|"
-        elif stripped_line.startswith("│") and stripped_line.endswith("│"):
-            border = "│"
-        else:
-            continue
-
-        # Splitting on the box character gives the five displayed cells.
-        cells = [cell.strip() for cell in stripped_line.split(border)[1:-1]]
-        if len(cells) != 5:
-            continue
-
-        # Ignore the table's heading row.
-        if cells == ["ID", "When", "Author", "Subject", "Message"]:
-            continue
-
-        # A numeric first cell marks the beginning of a new forum post.
-        if cells[0].isdigit():
-            current_row = cells
-            rows.append(current_row)
-            continue
-
-        # Rich wraps long table values onto extra displayed lines.
-        # Join those pieces back onto the post currently being built.
-        if current_row is not None:
-            for index, cell in enumerate(cells):
-                if cell:
-                    current_row[index] = f"{current_row[index]} {cell}".strip()
-
-    # Convert the collected table rows into clear Python objects.
-    return [
-        ForumPost(
-            id=int(row[0]),
-            timestamp=row[1],
-            author=row[2],
-            subject=row[3],
-            message=row[4],
-        )
-        for row in rows
-    ]
-
-
 def main():
     """Introduce Zubin and summarize Grumpy's discussion."""
 
@@ -133,10 +69,8 @@ def main():
     print("Reading Grumpy's discussion...")
     print()
 
-    # Ask the Moodle Tool to read the thread. The agent never runs a
-    # subprocess itself, which keeps external-system access isolated.
-    raw_output = read_discussion(GRUMPY_DISCUSSION_ID)
-    posts = parse_forum_posts(raw_output)
+    # The Moodle Tool returns structured posts, not rendered table text.
+    posts = read_discussion(GRUMPY_DISCUSSION_ID)
 
     # Keep the existing summary of all posts in the discussion.
     print("--------------------------------")
