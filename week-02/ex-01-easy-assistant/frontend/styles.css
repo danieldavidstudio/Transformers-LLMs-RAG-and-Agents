@@ -16,6 +16,8 @@
   --active: #237a3b;
   --active-bg: #f2faf4;
   --danger: #a52a2a;
+  --assistant-message-bg: #f0f1f2;
+  --error-message-bg: #fff0f0;
 }
 
 :root[data-theme="dark"] {
@@ -36,6 +38,14 @@
   --active: #4da568;
   --active-bg: #203429;
   --danger: #c95c5c;
+  --assistant-message-bg: #2c3136;
+  --error-message-bg: #3a2528;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 body {
@@ -46,8 +56,9 @@ body {
 }
 
 main {
-  max-width: 80rem;
-  margin: 3rem auto;
+  width: 100%;
+  max-width: 96rem;
+  margin: clamp(1.5rem, 4vw, 3rem) auto;
   padding: 0 1.5rem;
 }
 
@@ -63,10 +74,43 @@ main {
   margin: 0;
 }
 
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab-button {
+  flex: 0 0 auto;
+  padding: 0.75rem 1rem;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 0.375rem 0.375rem 0 0;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.tab-button[aria-selected="true"] {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 700;
+}
+
+.tab-panel {
+  width: 100%;
+  min-width: 0;
+}
+
+.tab-panel[hidden] {
+  display: none;
+}
+
 .assistant-panel {
   display: grid;
   gap: 1rem;
-  margin-bottom: 2rem;
 }
 
 .assistant-section {
@@ -122,14 +166,37 @@ textarea {
   margin: 0.75rem 0 0;
 }
 
+.empty-state {
+  margin: 0;
+  padding: 1rem;
+  border: 1px dashed var(--border);
+  border-radius: 0.375rem;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+}
+
+.empty-state p {
+  margin: 0;
+}
+
+.empty-state p + p {
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.assistant-empty-state {
+  grid-column: 1 / -1;
+}
+
 .assistant-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
   gap: 1rem;
   align-items: start;
 }
 
 .assistant-card {
+  min-width: 0;
   padding: 1rem;
   border: 1px solid var(--border-soft);
   border-radius: 0.375rem;
@@ -141,21 +208,35 @@ textarea {
   background: var(--active-bg);
 }
 
-.assistant-card.selected::before {
-  display: inline-block;
-  margin-bottom: 0.75rem;
-  padding: 0.2rem 0.45rem;
-  border-radius: 999px;
-  background: var(--active);
-  color: var(--primary-text);
-  content: "ACTIVE";
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+.assistant-card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
 }
 
-.assistant-card h3 {
-  margin: 0 0 0.75rem;
+.status-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.status-badge {
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.active-badge,
+.document-badge {
+  background: var(--active);
+  color: var(--primary-text);
+}
+
+.empty-badge {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
 }
 
 .card-actions {
@@ -168,34 +249,88 @@ textarea {
   padding: 0.55rem 0.75rem;
 }
 
+.select-assistant-button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
 .delete-assistant-button {
   border: 1px solid var(--danger);
   background: transparent;
   color: var(--danger);
 }
 
-.assistant-card p,
-.assistant-card pre {
-  margin: 0.35rem 0 0.9rem;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+.prompt-details {
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--border-soft);
 }
 
-.assistant-card pre {
+.prompt-details summary {
+  padding: 0.55rem 0;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.prompt-details p,
+.prompt-details pre {
+  margin: 0 0 0.75rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+}
+
+.prompt-details pre {
   font: inherit;
 }
 
-.document-status {
+.document-metadata {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+}
+
+.document-metadata:empty {
+  display: none;
+}
+
+.document-metadata div {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr);
+  gap: 0.5rem;
+  padding: 0.15rem 0;
+}
+
+.document-metadata dt {
   color: var(--text-muted);
+}
+
+.document-metadata dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.upload-status {
+  min-height: 1.2rem;
+  margin: 0.4rem 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.upload-status:empty {
+  display: none;
 }
 
 .document-upload-form {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
 .document-upload-form input {
+  flex: 1 1 14rem;
   min-width: 0;
   margin: 0;
 }
@@ -209,16 +344,21 @@ textarea {
   opacity: 0.65;
 }
 
-.app-layout {
-  display: grid;
-  gap: 1.5rem;
-}
-
 .chat-panel {
+  width: 100%;
+  max-width: 80rem;
+  margin: 0 auto;
   min-width: 0;
 }
 
+.chat-panel h2 {
+  margin-top: 0;
+}
+
 .selected-assistant {
+  position: sticky;
+  z-index: 2;
+  top: 0.5rem;
   margin: 0 0 0.75rem;
   padding: 0.75rem 1rem;
   border-radius: 0.375rem;
@@ -227,7 +367,14 @@ textarea {
   font-weight: 600;
 }
 
+.selected-assistant.empty-state-banner {
+  border: 1px dashed var(--border);
+  background: var(--surface-muted);
+  color: var(--text-muted);
+}
+
 #messages {
+  width: 100%;
   min-height: 16rem;
   margin-bottom: 1.5rem;
   padding: 1rem;
@@ -237,18 +384,50 @@ textarea {
 }
 
 .message {
-  margin: 0 0 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin: 0 0 1rem;
+}
+
+.user-message {
+  align-items: flex-end;
 }
 
 .message-sender {
   display: block;
-  margin-bottom: 0.25rem;
+  margin: 0 0.4rem 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.user-message .message-sender {
+  margin-right: 0.4rem;
+  color: var(--text);
 }
 
 .message-content {
+  min-width: 0;
+  max-width: min(85%, 44rem);
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.75rem;
+  background: var(--assistant-message-bg);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   line-height: 1.5;
+}
+
+.user-message .message-content {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-text);
+}
+
+.error-message .message-content {
+  border-color: var(--danger);
+  background: var(--error-message-bg);
+  color: var(--text);
 }
 
 .markdown-content {
@@ -320,6 +499,7 @@ label {
 .image-picker {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.75rem;
   margin-bottom: 0.75rem;
 }
@@ -344,6 +524,7 @@ label {
 }
 
 #image-filename {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -367,6 +548,10 @@ label {
 .input-row {
   display: flex;
   gap: 0.5rem;
+}
+
+.input-row input {
+  min-width: 0;
 }
 
 input {
@@ -396,6 +581,9 @@ button {
 }
 
 .debug-panel {
+  width: 100%;
+  max-width: 80rem;
+  margin: 0 auto;
   padding: 1.25rem;
   border: 1px solid var(--border);
   border-radius: 0.5rem;
@@ -419,9 +607,11 @@ button {
   border-radius: 0.375rem;
   background: var(--surface-muted);
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .debug-message {
+  min-width: 0;
   margin-bottom: 0.75rem;
   padding: 1rem;
   border: 1px solid var(--border-soft);
@@ -475,24 +665,59 @@ button {
   border-top: 1px solid var(--border-soft);
 }
 
-@media (min-width: 1001px) {
-  .app-layout {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-}
-
-@media (max-width: 40rem) {
-  main {
-    margin: 2rem auto;
-    padding: 0 1rem;
-  }
-
-  .page-header {
-    align-items: flex-start;
+@media (max-width: 48rem) {
+  .assistant-section-content,
+  .debug-panel {
+    padding: 1rem;
   }
 
   .document-upload-form {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .document-upload-form input,
+  .document-upload-form button {
+    width: 100%;
+  }
+
+  .message-content {
+    max-width: 92%;
+  }
+}
+
+@media (max-width: 32rem) {
+  main {
+    margin: 1.25rem auto;
+    padding: 0 1rem;
+  }
+
+  .page-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .tabs {
+    gap: 0.25rem;
+  }
+
+  .tab-button {
+    padding: 0.65rem 0.75rem;
+  }
+
+  .input-row {
+    flex-direction: column;
+  }
+
+  .input-row button {
+    width: 100%;
+  }
+
+  .message-content {
+    max-width: 100%;
+  }
+
+  .selected-assistant {
+    top: 0.25rem;
   }
 }

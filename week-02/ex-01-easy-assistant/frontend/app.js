@@ -5,6 +5,8 @@ const imageFilename = document.querySelector("#image-filename");
 const imagePreview = document.querySelector("#image-preview");
 const messages = document.querySelector("#messages");
 const debugPanel = document.querySelector("#debug-panel");
+const debugEmptyState = document.querySelector("#debug-empty-state");
+const debugContent = document.querySelector("#debug-content");
 const debugAssistant = document.querySelector("#debug-assistant");
 const debugPrompt = document.querySelector("#debug-prompt");
 const debugMessages = document.querySelector("#debug-messages");
@@ -20,7 +22,32 @@ const assistantFormMessage = document.querySelector("#assistant-form-message");
 const assistantList = document.querySelector("#assistant-list");
 const selectedAssistantText = document.querySelector("#selected-assistant");
 const themeToggle = document.querySelector("#theme-toggle");
+const tabButtons = document.querySelectorAll(".tab-button");
+const tabPanels = document.querySelectorAll(".tab-panel");
 let selectedAssistant = null;
+
+function selectTab(tabId) {
+  const tabExists = [...tabPanels].some((panel) => panel.id === tabId);
+  const selectedTabId = tabExists ? tabId : "assistants-tab";
+
+  for (const button of tabButtons) {
+    const isSelected = button.dataset.tab === selectedTabId;
+    button.setAttribute("aria-selected", String(isSelected));
+    button.tabIndex = isSelected ? 0 : -1;
+  }
+
+  for (const panel of tabPanels) {
+    panel.hidden = panel.id !== selectedTabId;
+  }
+
+  localStorage.setItem("easy-assistant-tab", selectedTabId);
+}
+
+for (const button of tabButtons) {
+  button.addEventListener("click", () => selectTab(button.dataset.tab));
+}
+
+selectTab(localStorage.getItem("easy-assistant-tab") ?? "assistants-tab");
 
 function setTheme(theme) {
   document.documentElement.dataset.theme = theme;
@@ -37,9 +64,21 @@ themeToggle.addEventListener("click", () => {
 });
 
 function updateSelectedAssistant() {
-  selectedAssistantText.textContent = selectedAssistant
-    ? `Selected assistant: ${selectedAssistant.name}`
-    : "No assistant selected";
+  selectedAssistantText.classList.toggle(
+    "empty-state-banner",
+    !selectedAssistant || !selectedAssistant.has_document,
+  );
+
+  if (!selectedAssistant) {
+    selectedAssistantText.textContent =
+      "💬 Select an assistant to start chatting.";
+  } else if (!selectedAssistant.has_document) {
+    selectedAssistantText.textContent =
+      "📄 Upload a text document before asking questions.";
+  } else {
+    selectedAssistantText.textContent =
+      `Selected assistant: ${selectedAssistant.name}`;
+  }
 }
 
 function renderAssistants(assistants) {
@@ -50,9 +89,16 @@ function renderAssistants(assistants) {
   updateSelectedAssistant();
 
   if (assistants.length === 0) {
-    const emptyMessage = document.createElement("p");
-    emptyMessage.textContent = "No assistants created yet.";
-    assistantList.appendChild(emptyMessage);
+    const emptyState = document.createElement("div");
+    emptyState.className = "empty-state assistant-empty-state";
+
+    const title = document.createElement("p");
+    title.textContent = "🤖 No assistants created yet.";
+    const description = document.createElement("p");
+    description.textContent = "Create your first assistant to begin.";
+
+    emptyState.append(title, description);
+    assistantList.appendChild(emptyState);
     return;
   }
 
@@ -64,13 +110,32 @@ function renderAssistants(assistants) {
     }
 
     const name = document.createElement("h3");
-    name.textContent = assistant.name;
+    name.textContent = `🤖 ${assistant.name}`;
+
+    const badges = document.createElement("div");
+    badges.className = "status-badges";
+
+    if (assistant.id === selectedAssistant?.id) {
+      const activeBadge = document.createElement("span");
+      activeBadge.className = "status-badge active-badge";
+      activeBadge.textContent = "Active";
+      badges.appendChild(activeBadge);
+    }
+
+    const documentBadge = document.createElement("span");
+    documentBadge.className = assistant.has_document
+      ? "status-badge document-badge"
+      : "status-badge empty-badge";
+    documentBadge.textContent = assistant.has_document
+      ? "📄 Has document"
+      : "📄 No document";
+    badges.appendChild(documentBadge);
 
     const selectButton = document.createElement("button");
     selectButton.type = "button";
     selectButton.className = "select-assistant-button";
-    selectButton.textContent =
-      assistant.id === selectedAssistant?.id ? "Selected" : "Select assistant";
+    selectButton.textContent = "Select";
+    selectButton.disabled = assistant.id === selectedAssistant?.id;
     selectButton.addEventListener("click", () => {
       selectedAssistant = assistant;
       renderAssistants(assistants);
@@ -79,7 +144,7 @@ function renderAssistants(assistants) {
     const deleteButton = document.createElement("button");
     deleteButton.type = "button";
     deleteButton.className = "delete-assistant-button";
-    deleteButton.textContent = "Delete";
+    deleteButton.textContent = "🗑 Delete";
     deleteButton.addEventListener("click", async () => {
       const confirmed = window.confirm(
         `Delete "${assistant.name}" and its document?`,
@@ -114,24 +179,44 @@ function renderAssistants(assistants) {
     cardActions.className = "card-actions";
     cardActions.append(selectButton, deleteButton);
 
-    const systemLabel = document.createElement("strong");
-    systemLabel.textContent = "System prompt";
     const systemText = document.createElement("p");
     systemText.textContent = assistant.system_prompt;
+    const systemDetails = document.createElement("details");
+    systemDetails.className = "prompt-details";
+    const systemSummary = document.createElement("summary");
+    systemSummary.textContent = "⚙ System prompt";
+    systemDetails.append(systemSummary, systemText);
 
-    const templateLabel = document.createElement("strong");
-    templateLabel.textContent = "Prompt template";
     const templateText = document.createElement("pre");
     templateText.textContent = assistant.prompt_template;
-
-    const documentLabel = document.createElement("strong");
-    documentLabel.textContent = "Context document";
+    const templateDetails = document.createElement("details");
+    templateDetails.className = "prompt-details";
+    const templateSummary = document.createElement("summary");
+    templateSummary.textContent = "⚙ Prompt template";
+    templateDetails.append(templateSummary, templateText);
 
     const documentStatus = document.createElement("p");
-    documentStatus.className = "document-status";
-    documentStatus.textContent = assistant.has_document
-      ? `${assistant.document_filename} (${assistant.document_char_count} characters)`
-      : "No document uploaded.";
+    documentStatus.className = "upload-status";
+
+    const documentMetadata = document.createElement("dl");
+    documentMetadata.className = "document-metadata";
+    if (assistant.has_document) {
+      const filenameRow = document.createElement("div");
+      const filenameLabel = document.createElement("dt");
+      filenameLabel.textContent = "File";
+      const filenameValue = document.createElement("dd");
+      filenameValue.textContent = assistant.document_filename;
+      filenameRow.append(filenameLabel, filenameValue);
+
+      const characterRow = document.createElement("div");
+      const characterLabel = document.createElement("dt");
+      characterLabel.textContent = "Characters";
+      const characterValue = document.createElement("dd");
+      characterValue.textContent = assistant.document_char_count;
+      characterRow.append(characterLabel, characterValue);
+
+      documentMetadata.append(filenameRow, characterRow);
+    }
 
     const uploadForm = document.createElement("form");
     uploadForm.className = "document-upload-form";
@@ -184,12 +269,11 @@ function renderAssistants(assistants) {
 
     card.append(
       name,
+      badges,
       cardActions,
-      systemLabel,
-      systemText,
-      templateLabel,
-      templateText,
-      documentLabel,
+      documentMetadata,
+      systemDetails,
+      templateDetails,
       documentStatus,
       uploadForm,
     );
@@ -262,9 +346,20 @@ function addMessage(sender, text, renderMarkdown = false) {
   const message = document.createElement("div");
   message.className = "message";
 
+  let icon = "🤖";
+  if (sender === "You") {
+    message.classList.add("user-message");
+    icon = "🙂";
+  } else if (sender === "Error") {
+    message.classList.add("error-message");
+    icon = "⚠️";
+  } else {
+    message.classList.add("assistant-message");
+  }
+
   const label = document.createElement("strong");
   label.className = "message-sender";
-  label.textContent = `${sender}:`;
+  label.textContent = `${icon} ${sender}`;
 
   const content = document.createElement("div");
   content.className = "message-content";
@@ -307,6 +402,8 @@ function formatDebugContent(content) {
 }
 
 function updateDebugView(data, prompt = data.prompt) {
+  debugEmptyState.hidden = true;
+  debugContent.hidden = false;
   debugMessages.replaceChildren();
   debugAssistant.textContent = displayValue(data.assistant_name);
   debugPrompt.textContent = displayValue(prompt);

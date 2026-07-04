@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EASY-ASSISTANT</title>
-    <link rel="stylesheet" href="styles.css?v=12">
+    <link rel="stylesheet" href="styles.css?v=17">
   </head>
   <body>
     <main>
@@ -15,7 +15,43 @@
         </button>
       </header>
 
-      <section class="assistant-panel" aria-label="Assistant management">
+      <nav class="tabs" role="tablist" aria-label="Application sections">
+        <button
+          id="assistants-tab-button"
+          class="tab-button"
+          type="button"
+          role="tab"
+          aria-controls="assistants-tab"
+          aria-selected="true"
+          data-tab="assistants-tab"
+        >🤖 Assistants</button>
+        <button
+          id="chat-tab-button"
+          class="tab-button"
+          type="button"
+          role="tab"
+          aria-controls="chat-tab"
+          aria-selected="false"
+          data-tab="chat-tab"
+        >💬 Chat</button>
+        <button
+          id="debug-tab-button"
+          class="tab-button"
+          type="button"
+          role="tab"
+          aria-controls="debug-tab"
+          aria-selected="false"
+          data-tab="debug-tab"
+        >📊 Debug</button>
+      </nav>
+
+      <section
+        id="assistants-tab"
+        class="tab-panel"
+        role="tabpanel"
+        aria-labelledby="assistants-tab-button"
+      >
+        <div class="assistant-panel" aria-label="Assistant management">
         <details class="assistant-section" open>
           <summary>Create an assistant</summary>
           <div class="assistant-section-content form-container">
@@ -62,12 +98,20 @@ Question:
             </div>
           </div>
         </details>
+        </div>
       </section>
 
-      <div class="app-layout">
+      <section
+        id="chat-tab"
+        class="tab-panel"
+        role="tabpanel"
+        aria-labelledby="chat-tab-button"
+        hidden
+      >
         <section class="chat-panel" aria-label="Chat">
-          <p id="selected-assistant" class="selected-assistant">
-            No assistant selected
+          <h2>💬 Chat</h2>
+          <p id="selected-assistant" class="selected-assistant empty-state-banner">
+            💬 Select an assistant to start chatting.
           </p>
           <div id="messages" aria-live="polite"></div>
 
@@ -91,43 +135,57 @@ Question:
             </div>
           </form>
         </section>
+      </section>
 
-        <section id="debug-panel" class="debug-panel" hidden>
-          <h2>Context / Debug</h2>
+      <section
+        id="debug-tab"
+        class="tab-panel"
+        role="tabpanel"
+        aria-labelledby="debug-tab-button"
+        hidden
+      >
+        <section id="debug-panel" class="debug-panel">
+          <h2>📊 Context / Debug</h2>
 
-          <h3>Selected assistant</h3>
-          <p id="debug-assistant" class="debug-prompt">N/A</p>
+          <p id="debug-empty-state" class="empty-state">
+            📊 The filled prompt and token usage will appear here after a chat request.
+          </p>
 
-          <h3>Filled prompt template</h3>
-          <p id="debug-prompt" class="debug-prompt">N/A</p>
+          <div id="debug-content" hidden>
+            <h3>🤖 Selected assistant</h3>
+            <p id="debug-assistant" class="debug-prompt">N/A</p>
 
-          <h3>Messages sent to the model</h3>
-          <div id="debug-messages"></div>
+            <h3>⚙ Filled prompt template</h3>
+            <p id="debug-prompt" class="debug-prompt">N/A</p>
 
-          <h3>Token usage</h3>
-          <dl class="debug-values">
-            <div>
-              <dt>Prompt:</dt>
-              <dd id="prompt-tokens">N/A</dd>
-            </div>
-            <div>
-              <dt>Completion:</dt>
-              <dd id="completion-tokens">N/A</dd>
-            </div>
-            <div>
-              <dt>Total:</dt>
-              <dd id="total-tokens">N/A</dd>
-            </div>
-            <div class="finish-row">
-              <dt>Finish:</dt>
-              <dd id="finish-reason">N/A</dd>
-            </div>
-          </dl>
+            <h3>💬 Messages sent to the model</h3>
+            <div id="debug-messages"></div>
+
+            <h3>📊 Token usage</h3>
+            <dl class="debug-values">
+              <div>
+                <dt>Prompt:</dt>
+                <dd id="prompt-tokens">N/A</dd>
+              </div>
+              <div>
+                <dt>Completion:</dt>
+                <dd id="completion-tokens">N/A</dd>
+              </div>
+              <div>
+                <dt>Total:</dt>
+                <dd id="total-tokens">N/A</dd>
+              </div>
+              <div class="finish-row">
+                <dt>Finish:</dt>
+                <dd id="finish-reason">N/A</dd>
+              </div>
+            </dl>
+          </div>
         </section>
-      </div>
+      </section>
     </main>
     <script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/lib/marked.umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
-    <script src="app.js?v=13"></script>
+    <script src="app.js?v=18"></script>
   </body>
 </html>
