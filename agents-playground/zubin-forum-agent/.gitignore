@@ -2,3 +2,4 @@ zubin_state.json
 zubin_log.md
 __pycache__/
 .venv/
+.env

@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from config import moodle_subprocess_env
+
 
 # The Moodle Tool owns the configuration needed to run moodle-cli.
 MOODLE_CLI_PATH = r"C:\Users\USER\Documents\GitHub\moodle-cli"
@@ -32,11 +34,14 @@ class ForumPost:
 def run_moodle(args: list[str]) -> str:
     """Run moodle-cli in JSON mode and return its output."""
 
+    env = moodle_subprocess_env()
+
     try:
         # Run from the moodle-cli project so uv uses that environment.
         result = subprocess.run(
             ["uv", "run", "moodle", "-p", PROFILE, "--json", *args],
             cwd=MOODLE_CLI_PATH,
+            env=env,
             capture_output=True,
             text=True,
             check=True,

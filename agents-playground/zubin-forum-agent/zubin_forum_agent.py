@@ -1,3 +1,4 @@
+import argparse
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -19,6 +20,21 @@ GRUMPY_ORIGINAL_POST_ID = 2662
 
 # Keep Zubin's local memory beside this Python file.
 STATE_PATH = Path(__file__).with_name("zubin_state.json")
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse command-line options for Zubin."""
+
+    parser = argparse.ArgumentParser(
+        description="Review Grumpy's Moodle discussion with Zubin.",
+    )
+    parser.add_argument(
+        "--draft-now",
+        action="store_true",
+        help="draft a reply to Grumpy's original post without requiring it "
+        "to be new",
+    )
+    return parser.parse_args(argv)
 
 
 def load_state() -> dict:
@@ -58,8 +74,10 @@ def get_new_posts(
     return [post for post in posts if post.id not in seen_ids]
 
 
-def main():
+def main(argv: list[str] | None = None):
     """Introduce Zubin and summarize Grumpy's discussion."""
+
+    args = parse_args(argv)
 
     print("=================================")
     print("ZUBIN")
@@ -114,18 +132,28 @@ def main():
     state["last_checked"] = datetime.now(timezone.utc).isoformat()
     save_state(state)
 
-    # Zubin delegates analysis of new posts to Turing.
+    recommendation_posts = new_posts
+    if args.draft_now:
+        # Explicit draft mode treats Grumpy's original post as eligible even
+        # when memory has already recorded it. All other recommendation and
+        # approval rules remain in force.
+        recommendation_posts = [
+            post for post in posts if post.id == GRUMPY_ORIGINAL_POST_ID
+        ]
+
+    # Zubin delegates analysis of eligible posts to Turing.
     conductor = Zubin(own_author=PROFILE)
     recommendation = conductor.recommend(
-        new_posts=new_posts,
+        new_posts=recommendation_posts,
         reply_count=max(len(posts) - 1, 0),
+        thread_posts=posts,
     )
 
     # A human must review the recommendation before the write tool is called.
     print()
     approval_request = request_human_approval(recommendation)
 
-    if approval_request.approved:
+    if recommendation.should_reply and approval_request.approved:
         print("Action approved.")
 
         # Approval is the only path to the Moodle write tool.
@@ -136,8 +164,11 @@ def main():
             message=recommendation.draft_message,
         )
         print("Reply successfully posted.")
-    else:
+    elif recommendation.should_reply:
         print("Action cancelled by user.")
+        print("Reply not posted.")
+    else:
+        print("No reply was recommended.")
         print("Reply not posted.")
 
     print()
