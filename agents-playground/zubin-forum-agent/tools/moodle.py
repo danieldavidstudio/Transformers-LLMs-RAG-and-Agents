@@ -55,8 +55,28 @@ def read_forum(forum_id: int) -> str:
     )
 
 
+def reply_to_post(post_id: int, subject: str, message: str) -> str:
+    """Post a reply through moodle-cli after the caller obtains approval."""
+
+    # This tool performs the external write, but it does not decide whether
+    # posting is allowed. The agent's human-approval workflow owns that choice.
+    return run_moodle(
+        [
+            "-p",
+            PROFILE,
+            "forum",
+            "reply",
+            "--post-id",
+            str(post_id),
+            "--subject",
+            subject,
+            "--message",
+            message,
+        ]
+    )
+
+
 def read_grumpy_thread() -> str:
     """Read Grumpy's discussion using its known discussion ID."""
 
     return read_discussion(1446)
-

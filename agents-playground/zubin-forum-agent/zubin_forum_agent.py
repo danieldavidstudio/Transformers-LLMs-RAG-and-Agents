@@ -5,7 +5,12 @@ from pathlib import Path
 
 from approval import request_human_approval
 from orchestra.zubin import Zubin
-from tools.moodle import MOODLE_CLI_PATH, PROFILE, read_discussion
+from tools.moodle import (
+    MOODLE_CLI_PATH,
+    PROFILE,
+    read_discussion,
+    reply_to_post,
+)
 
 
 # Forum identifiers used by Zubin.
@@ -191,8 +196,18 @@ def main():
 
     if approval_request.approved:
         print("Action approved.")
+
+        # Approval is the only path to the Moodle write tool.
+        print("Posting reply...")
+        reply_to_post(
+            post_id=GRUMPY_ORIGINAL_POST_ID,
+            subject=recommendation.draft_subject,
+            message=recommendation.draft_message,
+        )
+        print("Reply successfully posted.")
     else:
         print("Action cancelled by user.")
+        print("Reply not posted.")
 
     print()
     print("Ready for reasoning.")
