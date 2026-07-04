@@ -1,0 +1,277 @@
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #f5f5f5;
+  color: #222;
+}
+
+main {
+  max-width: 80rem;
+  margin: 3rem auto;
+  padding: 0 1.5rem;
+}
+
+h1 {
+  margin: 0 0 1.5rem;
+}
+
+.app-layout {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.chat-panel {
+  min-width: 0;
+}
+
+#messages {
+  min-height: 16rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 0.5rem;
+  background: white;
+}
+
+.message {
+  margin: 0 0 0.75rem;
+}
+
+.message-sender {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.message-content {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+.markdown-content {
+  white-space: normal;
+}
+
+.markdown-content > :first-child {
+  margin-top: 0;
+}
+
+.markdown-content > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3 {
+  margin: 1rem 0 0.5rem;
+  line-height: 1.25;
+}
+
+.markdown-content h1 {
+  font-size: 1.5rem;
+}
+
+.markdown-content h2 {
+  font-size: 1.3rem;
+}
+
+.markdown-content h3 {
+  font-size: 1.1rem;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+
+.markdown-content code {
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+  background: #eee;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.markdown-content pre {
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  overflow-x: auto;
+  border: 1px solid #ddd;
+  border-radius: 0.375rem;
+  background: #f5f5f5;
+}
+
+.markdown-content pre code {
+  padding: 0;
+  background: transparent;
+  font-size: 0.875rem;
+  white-space: pre;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.image-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.image-picker input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.image-button {
+  display: inline-block;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #aaa;
+  border-radius: 0.25rem;
+  background: white;
+  cursor: pointer;
+}
+
+#image-filename {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.image-preview {
+  display: block;
+  width: auto;
+  max-width: 180px;
+  max-height: 180px;
+  margin: 0 0 1rem;
+  border: 1px solid #ccc;
+  border-radius: 0.375rem;
+  object-fit: contain;
+}
+
+.image-preview[hidden] {
+  display: none;
+}
+
+.input-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+input {
+  flex: 1;
+  padding: 0.75rem;
+  border: 1px solid #aaa;
+  border-radius: 0.25rem;
+  font: inherit;
+}
+
+button {
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-radius: 0.25rem;
+  background: #222;
+  color: white;
+  font: inherit;
+  cursor: pointer;
+}
+
+.debug-panel {
+  padding: 1.25rem;
+  border: 1px solid #ccc;
+  border-radius: 0.5rem;
+  background: white;
+  color: #222;
+}
+
+.debug-panel h2 {
+  margin-top: 0;
+}
+
+.debug-panel h3 {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 1rem;
+}
+
+.debug-prompt {
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 0.375rem;
+  background: #fafafa;
+  white-space: pre-wrap;
+}
+
+.debug-message {
+  margin-bottom: 0.75rem;
+  padding: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 0.375rem;
+  background: #fafafa;
+}
+
+.debug-content {
+  margin: 0;
+}
+
+.debug-role {
+  display: inline-block;
+  margin: 0 0 0.6rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 0.25rem;
+  background: #e7e7e7;
+  color: #444;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.debug-content {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+.debug-values {
+  margin: 0;
+  max-width: 18rem;
+}
+
+.debug-values div {
+  display: grid;
+  grid-template-columns: 7rem 1fr;
+  gap: 0.75rem;
+  padding: 0.2rem 0;
+}
+
+.debug-values dt,
+.debug-values dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.debug-values .finish-row {
+  margin-top: 0.35rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid #ddd;
+}
+
+@media (min-width: 1001px) {
+  .app-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 40rem) {
+  main {
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+}

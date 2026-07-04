@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Easy ChatGPT</title>
+    <link rel="stylesheet" href="styles.css?v=7">
+  </head>
+  <body>
+    <main>
+      <h1>Easy ChatGPT</h1>
+
+      <div class="app-layout">
+        <section class="chat-panel" aria-label="Chat">
+          <div id="messages" aria-live="polite"></div>
+
+          <form id="chat-form">
+            <div class="image-picker">
+              <label for="image-input" class="image-button">Choose image</label>
+              <input id="image-input" type="file" accept="image/*">
+              <span id="image-filename">No image selected</span>
+            </div>
+            <img id="image-preview" class="image-preview" alt="Selected image preview" hidden>
+
+            <label for="message-input">Message</label>
+            <div class="input-row">
+              <input
+                id="message-input"
+                type="text"
+                placeholder="Type a message"
+                required
+              >
+              <button type="submit">Send</button>
+            </div>
+          </form>
+        </section>
+
+        <section id="debug-panel" class="debug-panel" hidden>
+          <h2>Context / Debug</h2>
+
+          <h3>Prompt</h3>
+          <p id="debug-prompt" class="debug-prompt">N/A</p>
+
+          <h3>Messages sent to the model</h3>
+          <div id="debug-messages"></div>
+
+          <h3>Token usage</h3>
+          <dl class="debug-values">
+            <div>
+              <dt>Prompt:</dt>
+              <dd id="prompt-tokens">N/A</dd>
+            </div>
+            <div>
+              <dt>Completion:</dt>
+              <dd id="completion-tokens">N/A</dd>
+            </div>
+            <div>
+              <dt>Total:</dt>
+              <dd id="total-tokens">N/A</dd>
+            </div>
+            <div class="finish-row">
+              <dt>Finish:</dt>
+              <dd id="finish-reason">N/A</dd>
+            </div>
+          </dl>
+        </section>
+      </div>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/lib/marked.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
+    <script src="app.js?v=9"></script>
+  </body>
+</html>
