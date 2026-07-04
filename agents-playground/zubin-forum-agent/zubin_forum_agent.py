@@ -1,5 +1,8 @@
+import json
 import subprocess
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
 
 
 # Location of the local moodle-cli project.
@@ -11,6 +14,9 @@ FORUM_ID = 416
 GRUMPY_DISCUSSION_ID = 1446
 GRUMPY_ORIGINAL_POST_ID = 2662
 
+# Keep Zubin's local memory beside this Python file.
+STATE_PATH = Path(__file__).with_name("zubin_state.json")
+
 
 @dataclass
 class ForumPost:
@@ -21,6 +27,43 @@ class ForumPost:
     subject: str
     message: str
     timestamp: str
+
+
+def load_state() -> dict:
+    """Load Zubin's memory, creating an empty state file when needed."""
+
+    # A brand-new project starts with no remembered posts.
+    if not STATE_PATH.exists():
+        state = {
+            "seen_post_ids": [],
+            "last_checked": None,
+        }
+        save_state(state)
+        return state
+
+    # Read the existing JSON state into a normal Python dictionary.
+    with STATE_PATH.open("r", encoding="utf-8") as state_file:
+        return json.load(state_file)
+
+
+def save_state(state: dict) -> None:
+    """Save Zubin's memory as readable JSON."""
+
+    # Indentation keeps the small state file friendly to human readers.
+    with STATE_PATH.open("w", encoding="utf-8") as state_file:
+        json.dump(state, state_file, indent=4)
+        state_file.write("\n")
+
+
+def get_new_posts(
+    posts: list[ForumPost],
+    seen_post_ids: list[int],
+) -> list[ForumPost]:
+    """Return only posts whose IDs are not already in Zubin's memory."""
+
+    # A set makes each ID lookup simple and fast.
+    seen_ids = set(seen_post_ids)
+    return [post for post in posts if post.id not in seen_ids]
 
 
 def run_moodle(args: list[str]) -> str:
@@ -121,7 +164,7 @@ def main():
     raw_output = read_grumpy_thread()
     posts = parse_forum_posts(raw_output)
 
-    # Show only the small summary requested for this milestone.
+    # Keep the existing summary of all posts in the discussion.
     print("--------------------------------")
     print(f"Found {len(posts)} forum posts")
     print("--------------------------------")
@@ -132,6 +175,35 @@ def main():
         print(f"ID: {post.id}")
         print(f"Author: {post.author}")
         print(f"Subject: {post.subject}")
+
+    # Load the IDs remembered during earlier runs.
+    state = load_state()
+    seen_post_ids = state["seen_post_ids"]
+
+    if not seen_post_ids:
+        # On the first run, remember the current thread as the baseline.
+        # Existing posts are deliberately not treated as new.
+        state["seen_post_ids"] = [post.id for post in posts]
+        print()
+        print("First run detected.")
+        print("Memory initialized.")
+    else:
+        # On later runs, report posts that are absent from memory.
+        new_posts = get_new_posts(posts, seen_post_ids)
+        print()
+        print("--------------------------------")
+        print(f"New posts detected: {len(new_posts)}")
+        print("--------------------------------")
+
+        # Preserve old IDs and add every ID found during this read.
+        current_post_ids = [post.id for post in posts]
+        state["seen_post_ids"] = list(
+            dict.fromkeys(seen_post_ids + current_post_ids)
+        )
+
+    # Record when the read finished and persist the updated memory.
+    state["last_checked"] = datetime.now(timezone.utc).isoformat()
+    save_state(state)
 
     print()
     print("Ready for reasoning.")
