@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+from approval import request_human_approval
 from orchestra.zubin import Zubin
 from tools.moodle import MOODLE_CLI_PATH, PROFILE, read_discussion
 
@@ -183,21 +184,15 @@ def main():
         reply_count=max(len(posts) - 1, 0),
     )
 
+    # A human must review the recommendation before any future action.
+    # Approval is recorded, but this milestone deliberately does not post.
     print()
-    print("===========================")
-    print("ZUBIN'S RECOMMENDATION")
-    print("===========================")
-    print(f"Should reply: {recommendation.should_reply}")
-    print(f"Confidence: {recommendation.confidence:.0%}")
-    print(f"Reason: {recommendation.reason}")
-    print("Draft:")
+    approval_request = request_human_approval(recommendation)
 
-    # Empty draft fields make a "do not reply" recommendation explicit.
-    if recommendation.draft_message:
-        print(f"Subject: {recommendation.draft_subject}")
-        print(recommendation.draft_message)
+    if approval_request.approved:
+        print("Action approved.")
     else:
-        print("No draft needed.")
+        print("Action cancelled by user.")
 
     print()
     print("Ready for reasoning.")
