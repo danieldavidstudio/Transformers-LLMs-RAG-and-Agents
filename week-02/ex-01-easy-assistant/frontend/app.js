@@ -21,10 +21,13 @@ const promptTemplate = document.querySelector("#prompt-template");
 const assistantFormMessage = document.querySelector("#assistant-form-message");
 const assistantList = document.querySelector("#assistant-list");
 const selectedAssistantText = document.querySelector("#selected-assistant");
+const chatEmptyState = document.querySelector("#chat-empty-state");
+const chatAssistantSelect = document.querySelector("#chat-assistant-select");
 const themeToggle = document.querySelector("#theme-toggle");
 const tabButtons = document.querySelectorAll(".tab-button");
 const tabPanels = document.querySelectorAll(".tab-panel");
 let selectedAssistant = null;
+let assistantsCache = [];
 
 function selectTab(tabId) {
   const tabExists = [...tabPanels].some((panel) => panel.id === tabId);
@@ -66,27 +69,56 @@ themeToggle.addEventListener("click", () => {
 function updateSelectedAssistant() {
   selectedAssistantText.classList.toggle(
     "empty-state-banner",
-    !selectedAssistant || !selectedAssistant.has_document,
+    !selectedAssistant,
   );
 
   if (!selectedAssistant) {
-    selectedAssistantText.textContent =
-      "💬 Select an assistant to start chatting.";
-  } else if (!selectedAssistant.has_document) {
-    selectedAssistantText.textContent =
-      "📄 Upload a text document before asking questions.";
+    selectedAssistantText.textContent = "No assistant selected";
+    chatEmptyState.textContent = "💬 Select an assistant to start chatting.";
+    chatEmptyState.hidden = false;
   } else {
     selectedAssistantText.textContent =
       `Selected assistant: ${selectedAssistant.name}`;
+    chatEmptyState.textContent =
+      "📄 Upload a text document before asking questions.";
+    chatEmptyState.hidden = selectedAssistant.has_document;
   }
 }
 
+function renderChatAssistantSelector(assistants) {
+  chatAssistantSelect.replaceChildren();
+
+  const emptyOption = document.createElement("option");
+  emptyOption.value = "";
+  emptyOption.textContent = "No assistant selected";
+  chatAssistantSelect.appendChild(emptyOption);
+
+  for (const assistant of assistants) {
+    const option = document.createElement("option");
+    option.value = assistant.id;
+    option.textContent = assistant.name;
+    chatAssistantSelect.appendChild(option);
+  }
+
+  chatAssistantSelect.value = selectedAssistant?.id ?? "";
+}
+
+chatAssistantSelect.addEventListener("change", () => {
+  selectedAssistant =
+    assistantsCache.find(
+      (assistant) => assistant.id === chatAssistantSelect.value,
+    ) ?? null;
+  renderAssistants(assistantsCache);
+});
+
 function renderAssistants(assistants) {
+  assistantsCache = assistants;
   assistantList.replaceChildren();
   const selectedId = selectedAssistant?.id;
   selectedAssistant =
     assistants.find((assistant) => assistant.id === selectedId) ?? null;
   updateSelectedAssistant();
+  renderChatAssistantSelector(assistants);
 
   if (assistants.length === 0) {
     const emptyState = document.createElement("div");
@@ -103,9 +135,10 @@ function renderAssistants(assistants) {
   }
 
   for (const assistant of assistants) {
+    const isSelected = assistant.id === selectedAssistant?.id;
     const card = document.createElement("article");
     card.className = "assistant-card";
-    if (assistant.id === selectedAssistant?.id) {
+    if (isSelected) {
       card.classList.add("selected");
     }
 
@@ -115,7 +148,7 @@ function renderAssistants(assistants) {
     const badges = document.createElement("div");
     badges.className = "status-badges";
 
-    if (assistant.id === selectedAssistant?.id) {
+    if (isSelected) {
       const activeBadge = document.createElement("span");
       activeBadge.className = "status-badge active-badge";
       activeBadge.textContent = "Active";
@@ -134,10 +167,9 @@ function renderAssistants(assistants) {
     const selectButton = document.createElement("button");
     selectButton.type = "button";
     selectButton.className = "select-assistant-button";
-    selectButton.textContent = "Select";
-    selectButton.disabled = assistant.id === selectedAssistant?.id;
+    selectButton.textContent = isSelected ? "Deselect" : "Select";
     selectButton.addEventListener("click", () => {
-      selectedAssistant = assistant;
+      selectedAssistant = isSelected ? null : assistant;
       renderAssistants(assistants);
     });
 

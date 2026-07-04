@@ -249,11 +249,6 @@ textarea {
   padding: 0.55rem 0.75rem;
 }
 
-.select-assistant-button:disabled {
-  cursor: default;
-  opacity: 0.55;
-}
-
 .delete-assistant-button {
   border: 1px solid var(--danger);
   background: transparent;
@@ -355,6 +350,21 @@ textarea {
   margin-top: 0;
 }
 
+.chat-assistant-picker {
+  max-width: 28rem;
+  margin-bottom: 0.75rem;
+}
+
+.chat-assistant-picker select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--input-border);
+  border-radius: 0.25rem;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
 .selected-assistant {
   position: sticky;
   z-index: 2;
@@ -371,6 +381,10 @@ textarea {
   border: 1px dashed var(--border);
   background: var(--surface-muted);
   color: var(--text-muted);
+}
+
+.chat-empty-state {
+  margin-bottom: 0.75rem;
 }
 
 #messages {
