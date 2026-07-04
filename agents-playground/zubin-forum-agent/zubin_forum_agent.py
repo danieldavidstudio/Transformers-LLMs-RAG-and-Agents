@@ -1,15 +1,12 @@
 import json
-import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+from tools.moodle import MOODLE_CLI_PATH, PROFILE, read_discussion
 
-# Location of the local moodle-cli project.
-MOODLE_CLI_PATH = r"C:\Users\USER\Documents\GitHub\moodle-cli"
 
-# Moodle profile and forum identifiers used by Zubin.
-PROFILE = "artemis"
+# Forum identifiers used by Zubin.
 FORUM_ID = 416
 GRUMPY_DISCUSSION_ID = 1446
 GRUMPY_ORIGINAL_POST_ID = 2662
@@ -66,21 +63,6 @@ def get_new_posts(
     return [post for post in posts if post.id not in seen_ids]
 
 
-def run_moodle(args: list[str]) -> str:
-    """Run a moodle-cli command and return its text output."""
-
-    # Run the command from the moodle-cli project so uv uses that project.
-    result = subprocess.run(
-        ["uv", "run", "moodle", *args],
-        cwd=MOODLE_CLI_PATH,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-
-    return result.stdout
-
-
 def parse_forum_posts(raw_output: str) -> list[ForumPost]:
     """Turn the current moodle-cli posts table into ForumPost objects."""
 
@@ -134,21 +116,6 @@ def parse_forum_posts(raw_output: str) -> list[ForumPost]:
     ]
 
 
-def read_grumpy_thread() -> str:
-    """Read every post in Grumpy's configured discussion."""
-
-    # The profile option belongs before the forum command.
-    return run_moodle(
-        [
-            "--profile",
-            PROFILE,
-            "forum",
-            "posts",
-            str(GRUMPY_DISCUSSION_ID),
-        ]
-    )
-
-
 def main():
     """Introduce Zubin and summarize Grumpy's discussion."""
 
@@ -160,8 +127,9 @@ def main():
     print("Reading Grumpy's discussion...")
     print()
 
-    # Read the table text, then turn each row into a ForumPost.
-    raw_output = read_grumpy_thread()
+    # Ask the Moodle Tool to read the thread. The agent never runs a
+    # subprocess itself, which keeps external-system access isolated.
+    raw_output = read_discussion(GRUMPY_DISCUSSION_ID)
     posts = parse_forum_posts(raw_output)
 
     # Keep the existing summary of all posts in the discussion.
