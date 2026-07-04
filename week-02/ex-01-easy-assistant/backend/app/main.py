@@ -1,19 +1,22 @@
 import base64
 import json
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from openai import OpenAI
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 app = FastAPI(title="Easy ChatGPT API")
 project_dir = Path(__file__).resolve().parents[2]
 frontend_dir = project_dir / "frontend"
+assistants_file = project_dir / "data" / "assistants.json"
 load_dotenv(project_dir / ".env")
 
 
@@ -36,9 +39,95 @@ class VisionResponse(BaseModel):
     finish_reason: str | None
 
 
+class AssistantCreate(BaseModel):
+    name: str
+    system_prompt: str
+    prompt_template: str
+
+    @field_validator("name", "system_prompt")
+    @classmethod
+    def text_must_not_be_empty(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("This field cannot be empty.")
+        return value
+
+    @field_validator("prompt_template")
+    @classmethod
+    def template_must_have_placeholders(cls, value: str) -> str:
+        value = value.strip()
+        missing = [
+            placeholder
+            for placeholder in ("{context}", "{user_input}")
+            if placeholder not in value
+        ]
+        if missing:
+            raise ValueError(
+                f"Prompt template must include: {', '.join(missing)}."
+            )
+        return value
+
+
+class Assistant(AssistantCreate):
+    id: str
+    created_at: str
+
+
+def read_assistants() -> list[Assistant]:
+    assistants_file.parent.mkdir(parents=True, exist_ok=True)
+
+    if not assistants_file.exists():
+        assistants_file.write_text("[]\n", encoding="utf-8")
+
+    try:
+        data = json.loads(assistants_file.read_text(encoding="utf-8"))
+        return [Assistant.model_validate(item) for item in data]
+    except (json.JSONDecodeError, OSError, ValueError) as error:
+        raise HTTPException(
+            status_code=500,
+            detail="Could not read the assistants file.",
+        ) from error
+
+
+def write_assistants(assistants: list[Assistant]) -> None:
+    try:
+        assistants_file.write_text(
+            json.dumps(
+                [assistant.model_dump() for assistant in assistants],
+                indent=2,
+                ensure_ascii=False,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+    except OSError as error:
+        raise HTTPException(
+            status_code=500,
+            detail="Could not save the assistant.",
+        ) from error
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.post("/assistants", response_model=Assistant, status_code=201)
+def create_assistant(request: AssistantCreate) -> Assistant:
+    assistants = read_assistants()
+    assistant = Assistant(
+        id=str(uuid4()),
+        created_at=datetime.now(timezone.utc).isoformat(),
+        **request.model_dump(),
+    )
+    assistants.append(assistant)
+    write_assistants(assistants)
+    return assistant
+
+
+@app.get("/assistants", response_model=list[Assistant])
+def list_assistants() -> list[Assistant]:
+    return read_assistants()
 
 
 @app.post("/chat", response_model=ChatResponse)

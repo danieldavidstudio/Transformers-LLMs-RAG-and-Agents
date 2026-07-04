@@ -3,12 +3,50 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Easy ChatGPT</title>
-    <link rel="stylesheet" href="styles.css?v=7">
+    <title>EASY-ASSISTANT</title>
+    <link rel="stylesheet" href="styles.css?v=8">
   </head>
   <body>
     <main>
-      <h1>Easy ChatGPT</h1>
+      <h1>EASY-ASSISTANT</h1>
+
+      <section class="assistant-panel" aria-labelledby="assistant-heading">
+        <div>
+          <h2 id="assistant-heading">Create an assistant</h2>
+          <form id="assistant-form">
+            <label for="assistant-name">Name</label>
+            <input id="assistant-name" type="text" required>
+
+            <label for="system-prompt">System prompt</label>
+            <textarea id="system-prompt" rows="4" required></textarea>
+
+            <label for="prompt-template">Prompt template</label>
+            <textarea
+              id="prompt-template"
+              rows="5"
+              required
+            >Context:
+{context}
+
+User:
+{user_input}</textarea>
+            <p class="field-help">
+              Must include <code>{context}</code> and
+              <code>{user_input}</code>.
+            </p>
+
+            <button type="submit">Create assistant</button>
+            <p id="assistant-form-message" class="form-message" aria-live="polite"></p>
+          </form>
+        </div>
+
+        <div>
+          <h2>Created assistants</h2>
+          <div id="assistant-list" class="assistant-list" aria-live="polite">
+            <p>Loading assistants...</p>
+          </div>
+        </div>
+      </section>
 
       <div class="app-layout">
         <section class="chat-panel" aria-label="Chat">
@@ -68,6 +106,6 @@
     </main>
     <script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/lib/marked.umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
-    <script src="app.js?v=9"></script>
+    <script src="app.js?v=10"></script>
   </body>
 </html>

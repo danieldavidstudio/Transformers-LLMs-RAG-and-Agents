@@ -11,6 +11,94 @@ const promptTokens = document.querySelector("#prompt-tokens");
 const completionTokens = document.querySelector("#completion-tokens");
 const totalTokens = document.querySelector("#total-tokens");
 const finishReason = document.querySelector("#finish-reason");
+const assistantForm = document.querySelector("#assistant-form");
+const assistantName = document.querySelector("#assistant-name");
+const systemPrompt = document.querySelector("#system-prompt");
+const promptTemplate = document.querySelector("#prompt-template");
+const assistantFormMessage = document.querySelector("#assistant-form-message");
+const assistantList = document.querySelector("#assistant-list");
+
+function renderAssistants(assistants) {
+  assistantList.replaceChildren();
+
+  if (assistants.length === 0) {
+    const emptyMessage = document.createElement("p");
+    emptyMessage.textContent = "No assistants created yet.";
+    assistantList.appendChild(emptyMessage);
+    return;
+  }
+
+  for (const assistant of assistants) {
+    const card = document.createElement("article");
+    card.className = "assistant-card";
+
+    const name = document.createElement("h3");
+    name.textContent = assistant.name;
+
+    const systemLabel = document.createElement("strong");
+    systemLabel.textContent = "System prompt";
+    const systemText = document.createElement("p");
+    systemText.textContent = assistant.system_prompt;
+
+    const templateLabel = document.createElement("strong");
+    templateLabel.textContent = "Prompt template";
+    const templateText = document.createElement("pre");
+    templateText.textContent = assistant.prompt_template;
+
+    card.append(name, systemLabel, systemText, templateLabel, templateText);
+    assistantList.appendChild(card);
+  }
+}
+
+async function loadAssistants() {
+  try {
+    const response = await fetch("/assistants");
+    if (!response.ok) {
+      throw new Error("Could not load assistants.");
+    }
+    renderAssistants(await response.json());
+  } catch (error) {
+    assistantList.textContent = error.message;
+  }
+}
+
+assistantForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  assistantFormMessage.textContent = "";
+
+  const template = promptTemplate.value.trim();
+  if (!template.includes("{context}") || !template.includes("{user_input}")) {
+    assistantFormMessage.textContent =
+      "Prompt template must include {context} and {user_input}.";
+    return;
+  }
+
+  try {
+    const response = await fetch("/assistants", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: assistantName.value,
+        system_prompt: systemPrompt.value,
+        prompt_template: template,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail?.[0]?.msg ?? error.detail ?? "Could not create assistant.");
+    }
+
+    assistantForm.reset();
+    promptTemplate.value = "Context:\n{context}\n\nUser:\n{user_input}";
+    assistantFormMessage.textContent = "Assistant created.";
+    await loadAssistants();
+  } catch (error) {
+    assistantFormMessage.textContent = error.message;
+  }
+});
+
+loadAssistants();
 
 function addMessage(sender, text, renderMarkdown = false) {
   const message = document.createElement("div");
