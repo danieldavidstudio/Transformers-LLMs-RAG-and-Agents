@@ -5,25 +5,20 @@ reasoning separate makes it possible to improve how Zubin thinks without
 changing the tools that read external systems.
 """
 
-from dataclasses import dataclass
 from typing import Any
 
-
-@dataclass
-class Recommendation:
-    """A complete, non-binding recommendation from Zubin."""
-
-    should_reply: bool
-    confidence: float
-    reason: str
-    draft_subject: str
-    draft_message: str
+from orchestra.musician import Musician, Recommendation
 
 
-class Zubin:
+class Zubin(Musician):
     """Review new posts and prepare a recommendation without taking action."""
 
     def __init__(self, own_author: str) -> None:
+        super().__init__(
+            name="Zubin",
+            role="Conductor and forum reply recommender",
+        )
+
         # Zubin must not recommend replying to posts written by ourselves.
         self.own_author = own_author.casefold()
 
@@ -92,4 +87,3 @@ class Zubin:
                 "Your post adds something useful to the discussion."
             ),
         )
-
