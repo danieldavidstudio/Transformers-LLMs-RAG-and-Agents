@@ -19,7 +19,22 @@ const promptTemplate = document.querySelector("#prompt-template");
 const assistantFormMessage = document.querySelector("#assistant-form-message");
 const assistantList = document.querySelector("#assistant-list");
 const selectedAssistantText = document.querySelector("#selected-assistant");
+const themeToggle = document.querySelector("#theme-toggle");
 let selectedAssistant = null;
+
+function setTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  themeToggle.textContent = theme === "dark" ? "Light mode" : "Dark mode";
+}
+
+setTheme(localStorage.getItem("easy-assistant-theme") ?? "light");
+
+themeToggle.addEventListener("click", () => {
+  const newTheme =
+    document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  setTheme(newTheme);
+  localStorage.setItem("easy-assistant-theme", newTheme);
+});
 
 function updateSelectedAssistant() {
   selectedAssistantText.textContent = selectedAssistant
@@ -60,6 +75,44 @@ function renderAssistants(assistants) {
       selectedAssistant = assistant;
       renderAssistants(assistants);
     });
+
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.className = "delete-assistant-button";
+    deleteButton.textContent = "Delete";
+    deleteButton.addEventListener("click", async () => {
+      const confirmed = window.confirm(
+        `Delete "${assistant.name}" and its document?`,
+      );
+      if (!confirmed) {
+        return;
+      }
+
+      deleteButton.disabled = true;
+      try {
+        const response = await fetch(
+          `/assistants/${encodeURIComponent(assistant.id)}`,
+          { method: "DELETE" },
+        );
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.detail ?? "Could not delete assistant.");
+        }
+
+        if (selectedAssistant?.id === assistant.id) {
+          selectedAssistant = null;
+          updateSelectedAssistant();
+        }
+        await loadAssistants();
+      } catch (error) {
+        window.alert(error.message);
+        deleteButton.disabled = false;
+      }
+    });
+
+    const cardActions = document.createElement("div");
+    cardActions.className = "card-actions";
+    cardActions.append(selectButton, deleteButton);
 
     const systemLabel = document.createElement("strong");
     systemLabel.textContent = "System prompt";
@@ -131,7 +184,7 @@ function renderAssistants(assistants) {
 
     card.append(
       name,
-      selectButton,
+      cardActions,
       systemLabel,
       systemText,
       templateLabel,
@@ -184,7 +237,18 @@ assistantForm.addEventListener("submit", async (event) => {
     }
 
     assistantForm.reset();
-    promptTemplate.value = "Context:\n{context}\n\nUser:\n{user_input}";
+    promptTemplate.value = `Use only the information in the context below to answer the question.
+
+If the answer is not contained in the context, say:
+"I don't know based on the provided document."
+
+Context
+----------------
+{context}
+----------------
+
+Question:
+{user_input}`;
     assistantFormMessage.textContent = "Assistant created.";
     await loadAssistants();
   } catch (error) {

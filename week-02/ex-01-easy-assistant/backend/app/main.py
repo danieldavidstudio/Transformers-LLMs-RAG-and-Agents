@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -146,6 +147,33 @@ def create_assistant(request: AssistantCreate) -> Assistant:
 @app.get("/assistants", response_model=list[Assistant])
 def list_assistants() -> list[Assistant]:
     return read_assistants()
+
+
+@app.delete("/assistants/{assistant_id}")
+def delete_assistant(assistant_id: str) -> dict[str, str]:
+    assistants = read_assistants()
+    assistant = next(
+        (item for item in assistants if item.id == assistant_id),
+        None,
+    )
+    if assistant is None:
+        raise HTTPException(status_code=404, detail="Assistant not found.")
+
+    document_dir = assistants_file.parent / "assistants" / assistant.id
+    try:
+        if document_dir.exists():
+            shutil.rmtree(document_dir)
+    except OSError as error:
+        raise HTTPException(
+            status_code=500,
+            detail="Could not delete the assistant document.",
+        ) from error
+
+    remaining_assistants = [
+        item for item in assistants if item.id != assistant_id
+    ]
+    write_assistants(remaining_assistants)
+    return {"message": "Assistant deleted."}
 
 
 @app.post("/assistants/chat", response_model=AssistantChatResponse)
