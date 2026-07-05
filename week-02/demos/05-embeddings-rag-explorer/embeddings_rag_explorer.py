@@ -7,12 +7,15 @@
 # =============================================================================================================== #
 
 """
-📚 Context Explorer — SIMPLE DYNAMIC RAG: watch retrieval choose the context.
+📚 Embeddings-RAG Explorer — the whole dynamic-RAG loop, panel by panel.
 
-The single-file explorer showed the gap between what the chat UI stores and what
-the LLM receives. This one changes ONE thing: the context is no longer a whole
-pasted file — it is the top-K chunks retrieved BY MEANING from a collection, fresh
-on every turn. Watch the new step in the middle:
+At startup, the demo INGESTS knowledge.txt: chunks it (a sliding window with
+overlap — chunking is a for-loop) and inserts every chunk into a collection
+through the course's collections_manager. The same three calls everything this
+week is built on: this demo, the collections-explorer, the provided
+simple-dynamic-rag tool and YOUR final project all speak the same interface.
+
+Then, every turn, you watch dynamic RAG happen:
 
     🖥️  CHAT UI        sends:  history (bare) + your latest message
                                   |
@@ -27,14 +30,13 @@ on every turn. Watch the new step in the middle:
                                   ^
     🖥️  CHAT UI        appends (your message, response) to history   ✗ chunks NOT saved
 
-Ingest documents first with simple-dynamic-rag/ingest.py (point PERSIST_PATH at the
-same store), or type /seed for a built-in handbook.
-
 In-chat commands:
-    /seed        load the built-in Acme chunks so retrieval lands immediately
     /topk N      change how many chunks are retrieved
-    /threshold X change the similarity threshold (chunks below it are dropped)
+    /threshold X change the similarity gate (chunks below it are dropped)
     (empty line) quit
+
+The collection lives in memory and is rebuilt from knowledge.txt on every run —
+every take of the demo starts identical. Set PERSIST_PATH in .env to keep it.
 """
 import json
 import os
@@ -70,17 +72,24 @@ client = OpenAI(
 )
 MODEL = os.environ.get("MODEL", "qwen3:1.7b")
 
+CHUNK_SIZE = int(os.environ.get("CHUNK_SIZE", "320"))
+CHUNK_OVERLAP = int(os.environ.get("CHUNK_OVERLAP", "40"))
+
 SYSTEM = "Answer using only the context. If it is not there, say you don't know."
 TEMPLATE = "Context:\n----\n{context}\n----\n\nQuestion: {user_input}"
 
-SEED = [
-    ("acme-handbook", "The warehouse robot's top speed is 2.4 metres per second."),
-    ("acme-handbook", "The Pallet Pup carries up to 600 kg and its battery lasts nine hours."),
-    ("acme-handbook", "Acme Robotics was founded in 2019 in Girona, Catalonia."),
-    ("acme-handbook", "Every Pallet Pup ships with an emergency stop any nearby worker can press."),
-    ("acme-handbook", "A Pallet Pup costs 18,900 euros; fleets of ten or more get a volume discount."),
-    ("recipes", "The recipe needs two eggs and a cup of flour."),
-]
+
+def chunk(text: str, size: int, overlap: int) -> list[str]:
+    """Slide a window of `size` characters across the text, stepping by size-overlap."""
+    step = max(1, size - overlap)
+    pieces = []
+    i = 0
+    while i < len(text):
+        piece = text[i:i + size].strip()
+        if piece:
+            pieces.append(piece)
+        i += step
+    return pieces
 
 
 def _truncate(text: str, width: int = 70) -> str:
@@ -142,19 +151,26 @@ def show_response(answer: str, usage, kept: int, total: int) -> None:
 
 
 def main() -> None:
-    persist = os.environ.get("PERSIST_PATH", "./collections-store")
-    col = create_collection(os.environ.get("COLLECTION", "handbook"),
+    persist = os.environ.get("PERSIST_PATH")  # unset -> in memory, identical on every run
+    col = create_collection(os.environ.get("COLLECTION", "knowledge"),
+                            description="embeddings-rag-explorer demo",
                             metric="cosine", persist_path=persist)
     top_k = int(os.environ.get("TOP_K", "4"))
     threshold = float(os.environ.get("THRESHOLD", "0.4"))
 
+    # --- INGESTION at startup: chunk knowledge.txt, insert through the manager ----
+    text = open(os.path.join(os.path.dirname(__file__), "knowledge.txt")).read()
+    pieces = chunk(text, CHUNK_SIZE, CHUNK_OVERLAP)
+    stored = sum(insert(col, p, {"source": "knowledge.txt"})["ok"] for p in pieces)
+
     intro = Text()
-    intro.append("Same three layers as the single-file explorer — but the context is now ", style=TEXT)
-    intro.append("retrieved by meaning", style=ACCENT)
-    intro.append(f" from a collection ({col.count()} chunks, {persist}).\n", style=TEXT)
+    intro.append("Ingested ", style=TEXT)
+    intro.append(f"{stored} chunks", style=NUM)
+    intro.append(f" from knowledge.txt (size={CHUNK_SIZE}, overlap={CHUNK_OVERLAP}) into the collection "
+                 f"({col.count()} total, {'persisted' if persist else 'in memory'}).\n", style=TEXT)
     intro.append("Ask something; watch which chunks get chosen — and which get dropped.\n\n", style=TEXT)
-    intro.append("/seed   /topk N   /threshold X   (empty line = quit)", style=TEXT_DIM)
-    console.print(Panel(intro, title="📚 Context Explorer — simple dynamic RAG",
+    intro.append("/topk N   /threshold X   (empty line = quit)", style=TEXT_DIM)
+    console.print(Panel(intro, title="📚 Embeddings-RAG Explorer — simple dynamic RAG",
                         border_style="bright_magenta", style=ON_BG, padding=(1, 2)))
 
     history = []
@@ -165,14 +181,6 @@ def main() -> None:
             break
         if not line:
             break
-        if line == "/seed":
-            for source, chunk in SEED:
-                r = insert(col, chunk, {"source": source, "title": source,
-                                        "doc_url": "seed", "md_url": "seed",
-                                        "chunking_strategy": "seed", "ingested_at": "seed"})
-                mark = "✔" if r["ok"] else "✘"
-                console.print(Text(f"  {mark} {r['id']}{'' if r['ok'] else ' — ' + r['error']}", style=GOOD if r["ok"] else BAD))
-            continue
         if line.startswith("/topk"):
             top_k = int(line.split()[1]); console.print(Text(f"  top_k = {top_k}", style=NUM)); continue
         if line.startswith("/threshold"):
@@ -187,10 +195,10 @@ def main() -> None:
         show_retrieval(line, kept, dropped, top_k, threshold)
         if not kept:
             console.print(Text("  nothing passes the threshold — nothing to inject. "
-                               "Ingest documents, /seed, or lower /threshold.\n", style=BAD))
+                               "The model gets no context; lower /threshold to compare.\n", style=BAD))
             continue
 
-        context = "\n\n".join(f"[{h['metadata'].get('title')} · chunk {h['metadata'].get('chunk_number')} "
+        context = "\n\n".join(f"[{h['metadata'].get('source')} · chunk {h['metadata'].get('chunk_number')} "
                               f"· similarity {h['similarity']:.3f}]\n{h['chunk']}" for h in kept)
         augmented = TEMPLATE.format(context=context, user_input=line)
         messages = [{"role": "system", "content": SYSTEM}] + history + [{"role": "user", "content": augmented}]
