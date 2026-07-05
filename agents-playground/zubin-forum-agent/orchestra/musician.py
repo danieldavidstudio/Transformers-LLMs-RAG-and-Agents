@@ -3,6 +3,19 @@
 from dataclasses import dataclass
 from typing import Any
 
+@dataclass
+class CommunicationPlan:
+    """Turing's non-binding analysis for a possible reply."""
+
+    should_reply: bool
+    confidence: float
+    reason: str
+    speaker: str
+    contributors: list[str]
+    goal: str
+    tone: str
+    key_points: list[str]
+
 
 @dataclass
 class Recommendation:
@@ -22,10 +35,13 @@ class Musician:
         self.name = name
         self.role = role
 
-    def recommend(self, *args: Any, **kwargs: Any) -> Recommendation:
-        """Return a recommendation when implemented by a concrete musician."""
+    def recommend(
+        self,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
+        """Return a result when implemented by a concrete musician."""
 
         raise NotImplementedError(
             f"{self.name} does not have recommendation logic yet."
         )
-

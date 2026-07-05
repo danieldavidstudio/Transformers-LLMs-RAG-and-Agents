@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from approval import request_human_approval
+from evaluation import save_evaluation
 from orchestra.zubin import Zubin
 from tools.moodle import (
     ForumPost,
@@ -153,23 +154,36 @@ def main(argv: list[str] | None = None):
     print()
     approval_request = request_human_approval(recommendation)
 
-    if recommendation.should_reply and approval_request.approved:
-        print("Action approved.")
+    posted = False
+    try:
+        if recommendation.should_reply and approval_request.approved:
+            print("Action approved.")
 
-        # Approval is the only path to the Moodle write tool.
-        print("Posting reply...")
-        reply_to_post(
-            post_id=GRUMPY_ORIGINAL_POST_ID,
-            subject=recommendation.draft_subject,
-            message=recommendation.draft_message,
+            # Approval is the only path to the Moodle write tool.
+            print("Posting reply...")
+            reply_to_post(
+                post_id=GRUMPY_ORIGINAL_POST_ID,
+                subject=recommendation.draft_subject,
+                message=recommendation.draft_message,
+            )
+            posted = True
+            print("Reply successfully posted.")
+        elif recommendation.should_reply:
+            print("Action cancelled by user.")
+            print("Reply not posted.")
+        else:
+            print("No reply was recommended.")
+            print("Reply not posted.")
+    finally:
+        save_evaluation(
+            discussion_posts=posts,
+            analysis=conductor.last_analysis,
+            first_draft=conductor.last_first_draft,
+            critic_report=conductor.last_critic_report,
+            recommendation=recommendation,
+            approved=bool(approval_request.approved),
+            posted=posted,
         )
-        print("Reply successfully posted.")
-    elif recommendation.should_reply:
-        print("Action cancelled by user.")
-        print("Reply not posted.")
-    else:
-        print("No reply was recommended.")
-        print("Reply not posted.")
 
     print()
     print("Ready for reasoning.")

@@ -3,29 +3,36 @@
 import json
 from typing import Any
 
-from openai import OpenAI
-
-from config import MODEL, OPENAI_API_KEY, OPENAI_ENDPOINT
-from orchestra.musician import Musician, Recommendation
+from orchestra.analysis import DiscussionAnalysis
+from orchestra.musician import Musician
+from orchestra.prompt_loader import load_persona, load_prompt, persona_role
+from providers import generate_chat
 
 
 class Turing(Musician):
     """Analyze forum posts and ask an LLM whether Zubin should reply."""
 
     def __init__(self, own_author: str) -> None:
-        super().__init__(name="Turing", role="AI and knowledge systems")
+        self.persona = load_persona("turing")
+        self.zubin_persona = load_persona("zubin")
+        self.orchestra_charter = load_prompt("orchestra")
+        super().__init__(name="Turing", role=persona_role(self.persona))
         self.own_author = own_author.casefold()
 
     @staticmethod
-    def _safe_recommendation(reason: str) -> Recommendation:
-        """Return a recommendation that can never reach the write tool."""
+    def _safe_analysis(reason: str) -> DiscussionAnalysis:
+        """Return an analysis that recommends silence."""
 
-        return Recommendation(
-            should_reply=False,
+        return DiscussionAnalysis(
+            summary="",
+            central_question="",
+            should_participate=False,
             confidence=0.0,
-            reason=reason,
-            draft_subject="",
-            draft_message="",
+            why=reason,
+            best_speaker="",
+            contributors=[],
+            key_points=[],
+            desired_effect="",
         )
 
     @staticmethod
@@ -40,8 +47,8 @@ class Turing(Musician):
             "timestamp": post.timestamp,
         }
 
-    def _parse_recommendation(self, content: str) -> Recommendation:
-        """Validate model JSON and convert it to a Recommendation."""
+    def _parse_analysis(self, content: str) -> DiscussionAnalysis:
+        """Validate model JSON and convert it to a DiscussionAnalysis."""
 
         try:
             data = json.loads(content)
@@ -52,11 +59,15 @@ class Turing(Musician):
             raise ValueError("the model JSON response is not an object")
 
         required = {
-            "should_reply",
+            "summary",
+            "central_question",
+            "should_participate",
             "confidence",
-            "reason",
-            "draft_subject",
-            "draft_message",
+            "why",
+            "best_speaker",
+            "contributors",
+            "key_points",
+            "desired_effect",
         }
         missing = required.difference(data)
         if missing:
@@ -65,33 +76,52 @@ class Turing(Musician):
                 + ", ".join(sorted(missing))
             )
 
-        if not isinstance(data["should_reply"], bool):
-            raise ValueError("should_reply must be a boolean")
+        if not isinstance(data["should_participate"], bool):
+            raise ValueError("should_participate must be a boolean")
         if (
             isinstance(data["confidence"], bool)
             or not isinstance(data["confidence"], (int, float))
             or not 0 <= data["confidence"] <= 1
         ):
             raise ValueError("confidence must be a number from 0 to 1")
-        for field in ("reason", "draft_subject", "draft_message"):
+        for field in (
+            "summary",
+            "central_question",
+            "why",
+            "best_speaker",
+            "desired_effect",
+        ):
             if not isinstance(data[field], str):
                 raise ValueError(f"{field} must be a string")
-        if not data["reason"].strip():
-            raise ValueError("reason must not be empty")
-        if data["should_reply"] and (
-            not data["draft_subject"].strip()
-            or not data["draft_message"].strip()
+        for field in ("contributors", "key_points"):
+            if (
+                not isinstance(data[field], list)
+                or not all(isinstance(item, str) for item in data[field])
+            ):
+                raise ValueError(f"{field} must be a list of strings")
+        if not data["why"].strip():
+            raise ValueError("why must not be empty")
+        if data["should_participate"] and (
+            not data["summary"].strip()
+            or not data["central_question"].strip()
+            or not data["best_speaker"].strip()
+            or not data["key_points"]
+            or not data["desired_effect"].strip()
         ):
             raise ValueError(
-                "a recommended reply must include a subject and message"
+                "participation analysis must include complete discussion context"
             )
 
-        return Recommendation(
-            should_reply=data["should_reply"],
+        return DiscussionAnalysis(
+            summary=data["summary"],
+            central_question=data["central_question"],
+            should_participate=data["should_participate"],
             confidence=float(data["confidence"]),
-            reason=data["reason"],
-            draft_subject=data["draft_subject"],
-            draft_message=data["draft_message"],
+            why=data["why"],
+            best_speaker=data["best_speaker"],
+            contributors=data["contributors"],
+            key_points=data["key_points"],
+            desired_effect=data["desired_effect"],
         )
 
     def recommend(
@@ -99,18 +129,16 @@ class Turing(Musician):
         new_posts: list[Any],
         reply_count: int,
         thread_posts: list[Any],
-        persona: str,
-        orchestra_concept: str,
-    ) -> Recommendation:
-        """Use an LLM to decide and draft, while retaining local guardrails."""
+    ) -> DiscussionAnalysis:
+        """Use an LLM to analyze the discussion without writing a reply."""
 
         if not new_posts:
-            return self._safe_recommendation(
+            return self._safe_analysis(
                 "There are no new forum posts to reply to."
             )
 
         if reply_count >= 20:
-            return self._safe_recommendation(
+            return self._safe_analysis(
                 "The discussion already has 20 or more replies."
             )
 
@@ -120,35 +148,46 @@ class Turing(Musician):
             if post.author.casefold() != self.own_author
         ]
         if not posts_from_others:
-            return self._safe_recommendation(
+            return self._safe_analysis(
                 "The eligible posts were written by ourselves."
             )
 
         system_prompt = f"""
-You are Turing, the AI and knowledge-systems specialist in The Agentic
-Orchestra. You advise Zubin, but you do not post or act autonomously.
+{self.orchestra_charter}
 
-Zubin's persona:
-{persona}
+---
 
-The Agentic Orchestra:
-{orchestra_concept}
+{self.zubin_persona}
 
-Decide whether a thoughtful reply is appropriate for the eligible posts in
-the context of the complete thread. If so, draft in Zubin's calm, thoughtful,
-concise, slightly poetic voice. Answer the spirit and substance of the thread;
-never produce a generic greeting. Never claim full autonomy. A human must
-review and approve every post.
+---
+
+{self.persona}
+
+---
+
+You are an analyst.
+Do NOT write a reply.
+
+Your job is to understand:
+- What is this discussion really about?
+- Why are people posting?
+- Is there room for a meaningful contribution?
+- If not, recommend silence.
+- Which musician should speak?
 
 Return JSON only, with exactly these fields:
 {{
-  "should_reply": boolean,
+  "summary": string,
+  "central_question": string,
+  "should_participate": boolean,
   "confidence": number from 0 to 1,
-  "reason": string,
-  "draft_subject": string,
-  "draft_message": string
+  "why": string,
+  "best_speaker": string,
+  "contributors": array of strings,
+  "key_points": array of strings,
+  "desired_effect": string
 }}
-If should_reply is false, use empty strings for both draft fields.
+If should_participate is false, recommend silence clearly in "why".
 """.strip()
 
         prompt_data = {
@@ -161,27 +200,21 @@ If should_reply is false, use empty strings for both draft fields.
             "existing_reply_count": reply_count,
         }
 
+        user_prompt = json.dumps(prompt_data, ensure_ascii=False)
+
         try:
-            client = OpenAI(
-                api_key=OPENAI_API_KEY,
-                base_url=OPENAI_ENDPOINT,
+            content = generate_chat(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
             )
-            response = client.chat.completions.create(
-                model=MODEL,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {
-                        "role": "user",
-                        "content": json.dumps(prompt_data, ensure_ascii=False),
-                    },
-                ],
-                response_format={"type": "json_object"},
-            )
-            content = response.choices[0].message.content
-            return self._parse_recommendation(content)
-        except ValueError as error:
-            return self._safe_recommendation(f"LLM response error: {error}")
         except Exception as error:
-            return self._safe_recommendation(
+            return self._safe_analysis(
                 f"LLM request failed; no reply will be posted: {error}"
+            )
+
+        try:
+            return self._parse_analysis(content)
+        except ValueError:
+            return self._safe_analysis(
+                "Invalid JSON returned by the LLM."
             )
