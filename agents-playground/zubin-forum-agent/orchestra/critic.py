@@ -5,6 +5,7 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 from orchestra.analysis import DiscussionAnalysis
+from orchestra.knowledge_loader import load_rules
 from orchestra.musician import Musician
 from orchestra.prompt_loader import load_persona, load_prompt, persona_role
 from providers import generate_chat
@@ -27,6 +28,7 @@ class Critic(Musician):
     def __init__(self) -> None:
         self.persona = load_persona("critic")
         self.orchestra_charter = load_prompt("orchestra")
+        self.rules = load_rules()
         super().__init__(name="Critic", role=persona_role(self.persona))
 
     @staticmethod
@@ -91,6 +93,10 @@ class Critic(Musician):
 
         system_prompt = f"""
 {self.orchestra_charter}
+
+---
+
+{self.rules}
 
 ---
 

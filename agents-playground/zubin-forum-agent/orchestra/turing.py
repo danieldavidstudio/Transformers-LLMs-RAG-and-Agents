@@ -4,6 +4,7 @@ import json
 from typing import Any
 
 from orchestra.analysis import DiscussionAnalysis
+from orchestra.knowledge_loader import load_rules
 from orchestra.musician import Musician
 from orchestra.prompt_loader import load_persona, load_prompt, persona_role
 from providers import generate_chat
@@ -16,6 +17,7 @@ class Turing(Musician):
         self.persona = load_persona("turing")
         self.zubin_persona = load_persona("zubin")
         self.orchestra_charter = load_prompt("orchestra")
+        self.rules = load_rules()
         super().__init__(name="Turing", role=persona_role(self.persona))
         self.own_author = own_author.casefold()
 
@@ -154,6 +156,10 @@ class Turing(Musician):
 
         system_prompt = f"""
 {self.orchestra_charter}
+
+---
+
+{self.rules}
 
 ---
 

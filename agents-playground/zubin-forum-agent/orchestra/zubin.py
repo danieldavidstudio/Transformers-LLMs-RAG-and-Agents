@@ -6,6 +6,7 @@ from typing import Any
 
 from orchestra.analysis import DiscussionAnalysis
 from orchestra.critic import Critic, CriticReport
+from orchestra.knowledge_loader import load_rules
 from orchestra.musician import Musician, Recommendation
 from orchestra.prompt_loader import load_persona, load_prompt, persona_role
 from orchestra.turing import Turing
@@ -18,6 +19,7 @@ class Zubin(Musician):
     def __init__(self, own_author: str) -> None:
         self.persona = load_persona("zubin")
         self.orchestra_charter = load_prompt("orchestra")
+        self.rules = load_rules()
         self.last_analysis: DiscussionAnalysis | None = None
         self.last_first_draft = ""
         self.last_critic_report: CriticReport | None = None
@@ -98,6 +100,10 @@ class Zubin(Musician):
 
 ---
 
+{self.rules}
+
+---
+
 {self.persona}
 
 ---
@@ -170,6 +176,10 @@ Return only the forum message.
         if critic_report.score < 7:
             rewrite_system_prompt = f"""
 {self.orchestra_charter}
+
+---
+
+{self.rules}
 
 ---
 
