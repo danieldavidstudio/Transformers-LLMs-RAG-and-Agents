@@ -12,4 +12,4 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-collections-manager = { path = "../../collections-manager", editable = true }
+collections-manager = { path = "../collections-manager", editable = true }

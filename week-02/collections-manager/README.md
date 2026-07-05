@@ -56,7 +56,7 @@ dependencies = ["collections-manager"]
 collections-manager = { path = "../../collections-manager", editable = true }
 ```
 
-(Adjust the relative path. See `week-02/demos/collections-explorer/` for a working example.)
+(Adjust the relative path. See `week-02/demos/04-collections-explorer/` for a working example.)
 
 ## 📖 License
 

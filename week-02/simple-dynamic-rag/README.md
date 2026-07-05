@@ -61,7 +61,7 @@ ollama pull qwen3:1.7b
 ollama pull nomic-embed-text
 ```
 
-Built on the course's [`collections-manager`](../../collections-manager/) utility —
+Built on the course's [`collections-manager`](../collections-manager/) utility —
 the application talks to the abstraction layer, not to the engine underneath.
 
 ## The thing to notice

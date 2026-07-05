@@ -39,7 +39,7 @@ uv run context_explorer_dynamic_rag.py
 ```
 
 Type `/seed` for a built-in handbook, or ingest real documents first with
-[`../simple-dynamic-rag/ingest.py`](../simple-dynamic-rag/) and point `PERSIST_PATH`
+[`../../simple-dynamic-rag/ingest.py`](../../simple-dynamic-rag/) and point `PERSIST_PATH`
 at the same store.
 
 | Command | What it does |
