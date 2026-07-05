@@ -8,10 +8,13 @@ The single-file demo pasted the **whole** knowledge file into the prompt on ever
 That is fine for one small file and hopeless for a real corpus — `prompt_tokens` grows
 with the size of your knowledge, not with the question.
 
-This demo does retrieval properly. It **chunks** the knowledge, **embeds** each chunk
-into a vector, **stores** the vectors in **Chroma** (a vector database), and then, for
-each question, **retrieves** only the few nearest chunks and injects those. You send what
-is *relevant*, not what is *there*.
+This demo does retrieval properly — and it does it **through the course's
+[`collections-manager`](../../collections-manager/)**, the same three calls everything
+this week is built on. It **chunks** the knowledge, **inserts** each chunk into a
+collection (the manager embeds and indexes it), and then, for each question, **queries**
+for the few nearest chunks and injects those. You send what is *relevant*, not what is
+*there* — and you never talk to the database engine directly. That is the point of an
+abstraction layer.
 
 The one idea from the embeddings lesson, now doing work: **meaning is geometry, so
 "relevant" is "nearby."** Watch two things — the question and the chunk that answers it
@@ -26,9 +29,9 @@ knowledge.txt ──chunk──► pieces ──embed──► vectors ──sto
 question ──embed──► query vector ──► nearest-neighbour search ───┘──► top-K chunks ──inject──► LLM answer
 ```
 
-Two models do two jobs: an **embeddings model** (`nomic-embed-text`) turns text into
-vectors, and a **chat model** writes the answer. Both are reached through the same
-OpenAI-compatible endpoint — only the configuration changes.
+Two models do two jobs: an **embeddings model** (`nomic-embed-text`, inside the
+collection) turns text into vectors, and a **chat model** writes the answer. Both are
+reached through the same OpenAI-compatible endpoint — only the configuration changes.
 
 ## Setup
 

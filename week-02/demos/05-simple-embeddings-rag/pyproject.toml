@@ -1,11 +1,14 @@
 [project]
 name = "simple-embeddings-rag"
 version = "0.1.0"
-description = "Simple embeddings RAG — chunk, embed, store in Chroma, retrieve by meaning, inject only the nearest chunks"
+description = "Simple embeddings RAG — the whole pipeline in one file, through the collections-manager: chunk, insert, query, inject"
 license = "CC-BY-NC-SA-4.0"
 requires-python = ">=3.10"
 dependencies = [
+    "collections-manager",
     "openai>=1.0.0",
     "python-dotenv>=1.0.0",
-    "chromadb==1.5.9",
 ]
+
+[tool.uv.sources]
+collections-manager = { path = "../../collections-manager", editable = true }
