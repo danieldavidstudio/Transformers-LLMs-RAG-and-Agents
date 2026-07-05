@@ -78,6 +78,18 @@ CHUNK_OVERLAP = int(os.environ.get("CHUNK_OVERLAP", "40"))
 SYSTEM = "Answer using only the context. If it is not there, say you don't know."
 TEMPLATE = "Context:\n----\n{context}\n----\n\nQuestion: {user_input}"
 
+# Suggested questions, in a demo-friendly order. Each one showcases a beat:
+# meaning-not-words, a paraphrase, provenance across domains, and finally the
+# threshold lesson (the off-topic question).
+SUGGESTIONS = [
+    "how quick is the delivery robot?",            # words not in the text — retrieval by meaning
+    "what does the night drone do?",               # 'night drone' appears nowhere; Shelf Owl wins
+    "how long does an installation take?",         # a different chunk entirely
+    "what does a Pallet Pup cost, with the dock?", # pricing across two chunks
+    "can it work inside a freezer?",               # nuanced answer (Arctic, 2027)
+    "give me a noodle recipe",                     # off-topic — watch the threshold, then /threshold 0.5
+]
+
 
 def chunk(text: str, size: int, overlap: int) -> list[str]:
     """Slide a window of `size` characters across the text, stepping by size-overlap."""
@@ -168,12 +180,17 @@ def main() -> None:
     intro.append(f"{stored} chunks", style=NUM)
     intro.append(f" from knowledge.txt (size={CHUNK_SIZE}, overlap={CHUNK_OVERLAP}) into the collection "
                  f"({col.count()} total, {'persisted' if persist else 'in memory'}).\n", style=TEXT)
-    intro.append("Ask something; watch which chunks get chosen — and which get dropped.\n\n", style=TEXT)
-    intro.append("/topk N   /threshold X   (empty line = quit)", style=TEXT_DIM)
+    intro.append("Ask something; watch which chunks get chosen — and which get dropped. "
+                 "Some questions to aim with:\n\n", style=TEXT)
+    for i, s in enumerate(SUGGESTIONS, 1):
+        intro.append(f"  {i}. ", style=NUM)
+        intro.append(s + "\n", style=TEXT)
+    intro.append("\n/topk N   /threshold X   (empty line = quit)", style=TEXT_DIM)
     console.print(Panel(intro, title="📚 Embeddings-RAG Explorer — simple dynamic RAG",
                         border_style="bright_magenta", style=ON_BG, padding=(1, 2)))
 
     history = []
+    next_tip = 0
     while True:
         try:
             line = console.input("[bold bright_cyan]📝 you: [/bold bright_cyan]").strip()
@@ -210,6 +227,15 @@ def main() -> None:
 
         history += [{"role": "user", "content": line},
                     {"role": "assistant", "content": answer}]
+
+        # Keep the demo moving: hint the next suggestion the user hasn't tried.
+        while next_tip < len(SUGGESTIONS) and SUGGESTIONS[next_tip].lower() in line.lower():
+            next_tip += 1
+        if next_tip < len(SUGGESTIONS):
+            tip = SUGGESTIONS[next_tip]
+            extra = "  (then /threshold 0.5 and ask again)" if tip.startswith("give me") else ""
+            console.print(Text(f"💡 try: {tip}{extra}\n", style=TEXT_DIM))
+            next_tip += 1
 
     console.print(Text("bye.", style=TEXT_DIM))
 

@@ -47,6 +47,11 @@ uv run embeddings_rag_explorer.py
 The collection lives **in memory** and is rebuilt from `knowledge.txt` on every run,
 so every demo take starts identical. Set `PERSIST_PATH` in `.env` to keep it instead.
 
+The intro panel **suggests questions to aim with** — a demo-friendly ladder from
+"retrieval by meaning" (words the text never uses) through cross-domain provenance
+to the off-topic threshold lesson — and after each answer it hints the next one, so
+you always know what the next question is trying to show.
+
 | Command | What it does |
 |---|---|
 | `/topk N` | how many chunks to retrieve |
