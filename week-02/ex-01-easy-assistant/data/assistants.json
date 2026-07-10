@@ -7,7 +7,8 @@
     "created_at": "2026-07-04T11:55:21.274855+00:00",
     "has_document": true,
     "document_filename": "mesh.txt",
-    "document_char_count": 298
+    "document_char_count": 298,
+    "document_chunk_count": null
   },
   {
     "name": "Messi",
@@ -17,7 +18,8 @@
     "created_at": "2026-07-04T12:17:23.600893+00:00",
     "has_document": false,
     "document_filename": null,
-    "document_char_count": null
+    "document_char_count": null,
+    "document_chunk_count": null
   },
   {
     "name": "Dibu Martinez",
@@ -27,6 +29,18 @@
     "created_at": "2026-07-04T12:18:24.377905+00:00",
     "has_document": false,
     "document_filename": null,
-    "document_char_count": null
+    "document_char_count": null,
+    "document_chunk_count": null
+  },
+  {
+    "name": "Gandalf",
+    "system_prompt": "You are a helpful assistant.\nYou are the Number 01.\n\nAnswer ONLY using the information contained in the provided context.\n\nIf the answer cannot be found in the context, say:\n\n\"You shall not pass.\"\n\nDo not invent information.",
+    "prompt_template": "Use only the information in the context below to answer the question.\n\nIf the answer is not contained in the context, say:\n\"I don't know based on the provided document.\"\n\nContext\n----------------\n{context}\n----------------\n\nQuestion:\n{user_input}",
+    "id": "ca5d82c1-5d81-4db0-8949-9d5f7d921979",
+    "created_at": "2026-07-10T11:37:24.717212+00:00",
+    "has_document": true,
+    "document_filename": "José Alberto Pepe Mujica Cordano.txt",
+    "document_char_count": 25845,
+    "document_chunk_count": 37
   }
 ]

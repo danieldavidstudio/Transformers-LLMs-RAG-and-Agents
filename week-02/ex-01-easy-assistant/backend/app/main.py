@@ -1,5 +1,6 @@
 import base64
 import json
+import math
 import os
 import shutil
 from datetime import datetime, timezone
@@ -12,13 +13,17 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from openai import OpenAI
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 app = FastAPI(title="Easy ChatGPT API")
 project_dir = Path(__file__).resolve().parents[2]
 frontend_dir = project_dir / "frontend"
 assistants_file = project_dir / "data" / "assistants.json"
 load_dotenv(project_dir / ".env")
+
+DEFAULT_CHUNK_SIZE = 800
+DEFAULT_CHUNK_OVERLAP = 100
+SUPPORTED_DOCUMENT_EXTENSIONS = {".txt", ".md"}
 
 
 class ChatRequest(BaseModel):
@@ -43,6 +48,7 @@ class AssistantChatResponse(BaseModel):
     assistant_name: str
     filled_prompt: str
     messages: list[dict[str, str]]
+    retrieved_chunks: list[dict[str, Any]] = Field(default_factory=list)
     usage: dict[str, Any]
     finish_reason: str | None
 
@@ -90,6 +96,7 @@ class Assistant(AssistantCreate):
     has_document: bool = False
     document_filename: str | None = None
     document_char_count: int | None = None
+    document_chunk_count: int | None = None
 
 
 def read_assistants() -> list[Assistant]:
@@ -124,6 +131,244 @@ def write_assistants(assistants: list[Assistant]) -> None:
             status_code=500,
             detail="Could not save the assistant.",
         ) from error
+
+
+def get_int_env(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None:
+        return default
+
+    try:
+        return int(value)
+    except ValueError as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"{name} must be an integer.",
+        ) from error
+
+
+def get_float_env(name: str, default: float) -> float:
+    value = os.getenv(name)
+    if value is None:
+        return default
+
+    try:
+        return float(value)
+    except ValueError as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"{name} must be a number.",
+        ) from error
+
+
+def assistant_dir(assistant_id: str) -> Path:
+    return assistants_file.parent / "assistants" / assistant_id
+
+
+def collection_dir(assistant_id: str) -> Path:
+    return assistant_dir(assistant_id) / "collections-store"
+
+
+def collection_file(assistant_id: str) -> Path:
+    return collection_dir(assistant_id) / "collection.json"
+
+
+def chunk_text(
+    text: str,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+    overlap: int = DEFAULT_CHUNK_OVERLAP,
+) -> list[dict[str, Any]]:
+    if chunk_size <= 0:
+        raise ValueError("chunk_size must be positive.")
+    if overlap < 0 or overlap >= chunk_size:
+        raise ValueError("overlap must be greater than or equal to 0 and smaller than chunk_size.")
+
+    chunks = []
+    start = 0
+    chunk_index = 0
+    while start < len(text):
+        end = min(start + chunk_size, len(text))
+        chunk = text[start:end].strip()
+        if chunk:
+            chunks.append(
+                {
+                    "id": f"chunk-{chunk_index:04d}",
+                    "text": chunk,
+                    "start": start,
+                    "end": end,
+                }
+            )
+            chunk_index += 1
+
+        if end == len(text):
+            break
+        start = max(end - overlap, start + 1)
+
+    return chunks
+
+
+def embedding_client() -> tuple[OpenAI, str]:
+    endpoint = os.getenv("EMBEDDING_ENDPOINT", "http://localhost:11434/v1")
+    api_key = os.getenv("EMBEDDING_API_KEY", "ollama")
+    model = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
+    return OpenAI(base_url=endpoint, api_key=api_key), model
+
+
+def embed_texts(texts: list[str]) -> list[list[float]]:
+    if not texts:
+        return []
+
+    client, model = embedding_client()
+    try:
+        response = client.embeddings.create(model=model, input=texts)
+    except Exception as error:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Could not create embeddings. Check EMBEDDING_ENDPOINT, "
+                "EMBEDDING_API_KEY, and EMBEDDING_MODEL."
+            ),
+        ) from error
+
+    return [item.embedding for item in response.data]
+
+
+def save_collection(
+    assistant: Assistant,
+    document_text: str,
+    document_filename: str,
+) -> int:
+    # Ingestion pipeline: split the uploaded document into overlapping
+    # character chunks, embed each chunk, and persist everything needed for
+    # later retrieval inside this assistant's collection-store directory.
+    chunks = chunk_text(document_text)
+    embeddings = embed_texts([chunk["text"] for chunk in chunks])
+
+    records = []
+    for chunk, embedding in zip(chunks, embeddings, strict=True):
+        records.append(
+            {
+                "id": chunk["id"],
+                "text": chunk["text"],
+                "embedding": embedding,
+                "metadata": {
+                    "assistant_id": assistant.id,
+                    "document_filename": document_filename,
+                    "start": chunk["start"],
+                    "end": chunk["end"],
+                },
+            }
+        )
+
+    store_dir = collection_dir(assistant.id)
+    store_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        collection_file(assistant.id).write_text(
+            json.dumps(
+                {
+                    "embedding_model": os.getenv(
+                        "EMBEDDING_MODEL",
+                        "nomic-embed-text",
+                    ),
+                    "chunk_size": DEFAULT_CHUNK_SIZE,
+                    "chunk_overlap": DEFAULT_CHUNK_OVERLAP,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "records": records,
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+    except OSError as error:
+        raise HTTPException(
+            status_code=500,
+            detail="Could not save the vector collection.",
+        ) from error
+
+    return len(records)
+
+
+def ensure_collection(assistant: Assistant) -> None:
+    if collection_file(assistant.id).exists():
+        return
+
+    legacy_document_path = assistant_dir(assistant.id) / "knowledge.txt"
+    try:
+        document_text = legacy_document_path.read_text(encoding="utf-8")
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status_code=404,
+            detail="The assistant vector collection could not be found.",
+        ) from error
+    except OSError as error:
+        raise HTTPException(
+            status_code=500,
+            detail="Could not read the assistant document for ingestion.",
+        ) from error
+
+    save_collection(
+        assistant=assistant,
+        document_text=document_text,
+        document_filename=assistant.document_filename or "knowledge.txt",
+    )
+
+
+def read_collection(assistant_id: str) -> list[dict[str, Any]]:
+    try:
+        collection = json.loads(collection_file(assistant_id).read_text(encoding="utf-8"))
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status_code=404,
+            detail="The assistant vector collection could not be found.",
+        ) from error
+    except (json.JSONDecodeError, OSError) as error:
+        raise HTTPException(
+            status_code=500,
+            detail="Could not read the assistant vector collection.",
+        ) from error
+
+    return collection.get("records", [])
+
+
+def cosine_similarity(left: list[float], right: list[float]) -> float:
+    dot_product = sum(a * b for a, b in zip(left, right, strict=False))
+    left_norm = math.sqrt(sum(value * value for value in left))
+    right_norm = math.sqrt(sum(value * value for value in right))
+    if left_norm == 0 or right_norm == 0:
+        return 0.0
+    return dot_product / (left_norm * right_norm)
+
+
+def retrieve_chunks(assistant_id: str, question: str) -> list[dict[str, Any]]:
+    # Retrieval pipeline: embed the user's question, compare it with every
+    # stored chunk vector, keep the top-K chunks above the similarity threshold,
+    # and return only those chunks for prompt context and debugging.
+    top_k = get_int_env("TOP_K", 4)
+    threshold = get_float_env("RAG_THRESHOLD", 0.50)
+    records = read_collection(assistant_id)
+    query_embedding = embed_texts([question])[0]
+
+    ranked_chunks = []
+    for record in records:
+        similarity = cosine_similarity(query_embedding, record["embedding"])
+        if similarity < threshold:
+            continue
+
+        text = record["text"]
+        ranked_chunks.append(
+            {
+                "id": record["id"],
+                "similarity": round(similarity, 4),
+                "text": text,
+                "preview": text[:240],
+                "metadata": record.get("metadata", {}),
+            }
+        )
+
+    ranked_chunks.sort(key=lambda item: item["similarity"], reverse=True)
+    return ranked_chunks[:top_k]
 
 
 @app.get("/health")
@@ -191,28 +436,16 @@ def assistant_chat(request: AssistantChatRequest) -> AssistantChatResponse:
             detail="The selected assistant does not have a document.",
         )
 
-    document_path = (
-        assistants_file.parent
-        / "assistants"
-        / assistant.id
-        / "knowledge.txt"
+    ensure_collection(assistant)
+    retrieved_chunks = retrieve_chunks(assistant.id, request.message)
+    context = "\n\n".join(
+        f"[{chunk['id']} | similarity {chunk['similarity']}]\n{chunk['text']}"
+        for chunk in retrieved_chunks
     )
-    try:
-        document_text = document_path.read_text(encoding="utf-8")
-    except FileNotFoundError as error:
-        raise HTTPException(
-            status_code=404,
-            detail="The assistant document could not be found.",
-        ) from error
-    except OSError as error:
-        raise HTTPException(
-            status_code=500,
-            detail="Could not read the assistant document.",
-        ) from error
 
     filled_prompt = (
         assistant.prompt_template
-        .replace("{context}", document_text)
+        .replace("{context}", context)
         .replace("{user_input}", request.message)
     )
     messages = [
@@ -239,6 +472,7 @@ def assistant_chat(request: AssistantChatRequest) -> AssistantChatResponse:
         assistant_name=assistant.name,
         filled_prompt=filled_prompt,
         messages=messages,
+        retrieved_chunks=retrieved_chunks,
         usage=completion.usage.model_dump() if completion.usage else {},
         finish_reason=choice.finish_reason,
     )
@@ -250,10 +484,11 @@ async def upload_assistant_document(
     file: UploadFile = File(...),
 ) -> Assistant:
     filename = file.filename or ""
-    if file.content_type != "text/plain" or Path(filename).suffix.lower() != ".txt":
+    suffix = Path(filename).suffix.lower()
+    if suffix not in SUPPORTED_DOCUMENT_EXTENSIONS:
         raise HTTPException(
             status_code=400,
-            detail="The document must be a plain-text .txt file.",
+            detail="The document must be a UTF-8 .txt or .md file.",
         )
 
     assistants = read_assistants()
@@ -273,10 +508,16 @@ async def upload_assistant_document(
             detail="The document must contain UTF-8 plain text.",
         ) from error
 
-    document_dir = assistants_file.parent / "assistants" / assistant.id
+    document_dir = assistant_dir(assistant.id)
     document_dir.mkdir(parents=True, exist_ok=True)
     try:
+        if collection_dir(assistant.id).exists():
+            shutil.rmtree(collection_dir(assistant.id))
         (document_dir / "knowledge.txt").write_text(
+            document_text,
+            encoding="utf-8",
+        )
+        (document_dir / f"knowledge{suffix}").write_text(
             document_text,
             encoding="utf-8",
         )
@@ -286,9 +527,16 @@ async def upload_assistant_document(
             detail="Could not save the document.",
         ) from error
 
+    chunk_count = save_collection(
+        assistant=assistant,
+        document_text=document_text,
+        document_filename=Path(filename).name,
+    )
+
     assistant.has_document = True
     assistant.document_filename = Path(filename).name
     assistant.document_char_count = len(document_text)
+    assistant.document_chunk_count = chunk_count
     write_assistants(assistants)
     return assistant
 

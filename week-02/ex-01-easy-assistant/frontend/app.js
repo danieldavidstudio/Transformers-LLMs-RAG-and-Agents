@@ -9,6 +9,7 @@ const debugEmptyState = document.querySelector("#debug-empty-state");
 const debugContent = document.querySelector("#debug-content");
 const debugAssistant = document.querySelector("#debug-assistant");
 const debugPrompt = document.querySelector("#debug-prompt");
+const debugRetrievedChunks = document.querySelector("#debug-retrieved-chunks");
 const debugMessages = document.querySelector("#debug-messages");
 const promptTokens = document.querySelector("#prompt-tokens");
 const completionTokens = document.querySelector("#completion-tokens");
@@ -248,6 +249,16 @@ function renderAssistants(assistants) {
       characterRow.append(characterLabel, characterValue);
 
       documentMetadata.append(filenameRow, characterRow);
+
+      if (assistant.document_chunk_count != null) {
+        const chunkRow = document.createElement("div");
+        const chunkLabel = document.createElement("dt");
+        chunkLabel.textContent = "Chunks";
+        const chunkValue = document.createElement("dd");
+        chunkValue.textContent = assistant.document_chunk_count;
+        chunkRow.append(chunkLabel, chunkValue);
+        documentMetadata.appendChild(chunkRow);
+      }
     }
 
     const uploadForm = document.createElement("form");
@@ -255,7 +266,7 @@ function renderAssistants(assistants) {
 
     const fileInput = document.createElement("input");
     fileInput.type = "file";
-    fileInput.accept = ".txt,text/plain";
+    fileInput.accept = ".txt,.md,text/plain,text/markdown";
     fileInput.required = true;
     fileInput.setAttribute("aria-label", `Text document for ${assistant.name}`);
 
@@ -276,7 +287,7 @@ function renderAssistants(assistants) {
       const formData = new FormData();
       formData.append("file", file);
       uploadButton.disabled = true;
-      documentStatus.textContent = "Uploading...";
+      documentStatus.textContent = "Uploading and ingesting...";
 
       try {
         const response = await fetch(
@@ -437,8 +448,34 @@ function updateDebugView(data, prompt = data.prompt) {
   debugEmptyState.hidden = true;
   debugContent.hidden = false;
   debugMessages.replaceChildren();
+  debugRetrievedChunks.replaceChildren();
   debugAssistant.textContent = displayValue(data.assistant_name);
   debugPrompt.textContent = displayValue(prompt);
+
+  const retrievedChunks = data.retrieved_chunks ?? [];
+  if (retrievedChunks.length === 0) {
+    const emptyChunks = document.createElement("p");
+    emptyChunks.className = "debug-empty-note";
+    emptyChunks.textContent = "No retrieved chunks for this request.";
+    debugRetrievedChunks.appendChild(emptyChunks);
+  }
+
+  for (const chunk of retrievedChunks) {
+    const container = document.createElement("article");
+    container.className = "debug-chunk";
+
+    const heading = document.createElement("p");
+    heading.className = "debug-chunk-heading";
+    heading.textContent =
+      `${chunk.id} · similarity ${displayValue(chunk.similarity)}`;
+
+    const text = document.createElement("p");
+    text.className = "debug-content";
+    text.textContent = chunk.text ?? chunk.preview ?? "";
+
+    container.append(heading, text);
+    debugRetrievedChunks.appendChild(container);
+  }
 
   for (const modelMessage of data.messages ?? []) {
     const container = document.createElement("div");
