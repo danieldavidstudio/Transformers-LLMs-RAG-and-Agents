@@ -37,7 +37,7 @@ The script runs two scenarios with the same conversation:
 ### Step 1: Create and activate the virtual environment
 
 ```bash
-cd function-calling
+cd week-03/demos/01-function-calling
 uv venv
 source .venv/bin/activate  # On macOS/Linux
 # or
@@ -52,7 +52,7 @@ uv sync
 
 ### Step 3: Configure your API key
 
-Create a `.env` file in the `function-calling` folder:
+Create a `.env` file in this folder:
 
 ```bash
 # Required
@@ -137,7 +137,7 @@ Without function calling, the pig can only *say* "I'll call the hunter." With fu
 
 ## 📖 License
 
-This repository is licensed under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License](../LICENSE) (`CC BY-NC-SA 4.0`).
+This repository is licensed under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License](../../../LICENSE) (`CC BY-NC-SA 4.0`).
 
 ## 👤 Author
 

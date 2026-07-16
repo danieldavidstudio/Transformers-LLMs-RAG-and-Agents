@@ -59,6 +59,7 @@ async def main(user_prompt):
             messages = [{"role": "user", "content": user_prompt}]
             while True:  # the SAME loop as 'give the LLM hands' — only the tool source changed
                 resp = client.chat.completions.create(model=MODEL, messages=messages, tools=tools)
+                print(f"  prompt_tokens: {resp.usage.prompt_tokens}")   # the registry rides in every request
                 msg = resp.choices[0].message
                 messages.append(msg.model_dump(exclude_none=True))
                 if not msg.tool_calls:

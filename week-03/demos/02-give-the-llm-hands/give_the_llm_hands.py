@@ -7,11 +7,11 @@
 # =============================================================================================================== #
 
 """
-Give the LLM hands — a minimal agentic loop, by hand.
+Give the LLM hands — a loop with tools.
 
-The reveal of this lecture: an "agent" is a `while` loop. We hand the
-model two tools (wget + execute_sql) and keep calling it until it stops
-asking for tools. No framework. No magic.
+We hand the model two tools (wget + execute_sql) and keep calling it
+until it stops asking for tools. No framework. No magic. Give it a task
+— not a question — and watch it chain the steps by itself.
 
 Ollama-first: runs against a local OpenAI-compatible endpoint, no key,
 no money.
@@ -104,11 +104,11 @@ SYSTEM = ("You are a data-collection assistant. Use wget to fetch URLs and "
           "fetch, create a table, insert rows, then answer in plain text.")
 
 
-def run_agent(user_prompt):
+def run_loop(user_prompt):
     messages = [{"role": "system", "content": SYSTEM},
                 {"role": "user", "content": user_prompt}]
     iteration = 0
-    while True:                                                       # 1  THE LOOP — this is the agent
+    while True:                                                       # 1  THE LOOP — ask until the model stops asking
         iteration += 1
         print(f"\n── LLM call #{iteration} ──")
         resp = client.chat.completions.create(                        # 2  ask the model, hand it the tools
@@ -124,7 +124,7 @@ def run_agent(user_prompt):
             print(f"📎 {tc.function.name} → {result[:200]}")
             messages.append({"role": "tool", "tool_call_id": tc.id,   # 6  feed results back, then LOOP
                              "name": tc.function.name, "content": result})
-    # ^^^ Lines 1-6 above ARE the agent. Everything else is plumbing.
+    # ^^^ Lines 1-6 above are the whole engine. Everything else is plumbing.
 
 
 def main():
@@ -136,7 +136,7 @@ def main():
                   "table for the user id, name, email and city, insert every "
                   "row, then tell me how many users you stored.")
         print("(no prompt given — using the built-in demo prompt)")
-    run_agent(prompt)
+    run_loop(prompt)
 
 
 if __name__ == "__main__":
