@@ -34,9 +34,12 @@ import subprocess
 import sys
 import urllib.request
 
+from dotenv import load_dotenv
 from openai import OpenAI
 
-# --- Config: Ollama-first, env-overridable -------------------------------
+load_dotenv()
+
+# --- Config: Ollama-first, env-overridable (.env or shell env) -----------
 BASE_URL = os.getenv("OPENAI_BASE_URL", "http://localhost:11434/v1")
 API_KEY = os.getenv("OPENAI_API_KEY", "ollama")  # any non-empty string for Ollama
 MODEL = os.getenv("MODEL", "qwen3:1.7b")
