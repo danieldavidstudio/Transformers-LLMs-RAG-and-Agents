@@ -8,14 +8,16 @@ This is the **public student-facing companion repo** for the [BSC Agents Course]
 
 | Folder | What's there |
 |---|---|
-| [`week-01/`](./week-01/) | **Week 1 — Foundations.** Tokenization, base-vs-aligned model comparison (GPT-2 vs Qwen3-1.7B), and the first API call via the [`context-explorer`](./week-01/demos/context-explorer/) demo. |
+| [`week-01/`](./week-01/) | **Week 1 — Transformers & LLMs.** Tokenization, base-vs-aligned model comparison (GPT-2 vs Qwen3-1.7B), and the first API call via the [`context-explorer`](./week-01/demos/02-context-explorer/) demo. |
+| [`week-02/`](./week-02/) | **Week 2 — RAG.** The demo ladder from single-file RAG to the embeddings-RAG explorer, plus the provided tools: [`collections-manager`](./week-02/collections-manager/) and [`simple-dynamic-rag`](./week-02/simple-dynamic-rag/). |
+| [`week-03/`](./week-03/) | **Week 3 — Agents.** Function calling (the Three Little Pigs demo), the ~30-line agent loop, and a minimal MCP server. |
 | [`pre-course/`](./pre-course/) | **Before you start.** The [VM setup guide](./pre-course/vm-setup.md) (Ubuntu Server 24.04 + the BSC tool baseline: uv, `llm`, transformers, torch-CPU, opencode, gh) and a [command cheatsheet](./pre-course/cheatsheet.md). |
 
 More weeks land here as the course progresses.
 
 ## 🧰 Demos
 
-### Context Explorer — [`week-01/demos/context-explorer/`](./week-01/demos/context-explorer/)
+### Context Explorer — [`week-01/demos/02-context-explorer/`](./week-01/demos/02-context-explorer/)
 
 A simple interactive demo to visualize how LLM conversation context works.
 
@@ -25,12 +27,12 @@ A simple interactive demo to visualize how LLM conversation context works.
 - Token usage and costs
 
 ```bash
-cd week-01/demos/context-explorer
+cd week-01/demos/02-context-explorer
 uv venv && source .venv/bin/activate && uv sync
 python context_explorer.py
 ```
 
-### Function Calling Demo — [`./function-calling/`](./function-calling/)
+### Function Calling Demo — [`week-03/demos/01-function-calling/`](./week-03/demos/01-function-calling/)
 
 The Three Little Pigs 🐷🐺 - An interactive demo showing the difference between LLMs with and without function calling.
 
@@ -40,7 +42,7 @@ The Three Little Pigs 🐷🐺 - An interactive demo showing the difference betw
 - The difference between "talking about actions" vs "taking actions"
 
 ```bash
-cd function-calling
+cd week-03/demos/01-function-calling
 uv venv && source .venv/bin/activate && uv sync
 python three_pigs_function_calling.py
 ```

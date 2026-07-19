@@ -1,9 +1,0 @@
-[project]
-name = "turtle"
-version = "0.1.0"
-description = "A custom agent shipped as a CLI — harvest, fold, ship (the Turtle pattern)"
-license = "CC-BY-NC-SA-4.0"
-requires-python = ">=3.10"
-dependencies = [
-    "openai>=1.0.0",
-]
